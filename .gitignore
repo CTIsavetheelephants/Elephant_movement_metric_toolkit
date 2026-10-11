@@ -1,0 +1,43 @@
+# ---- Private data: never public ----------------------------------------------
+# Pooled reference summaries (made by calculator/reference/build_reference.R,
+# which writes them OUTSIDE this repo by default - these lines are a safety net)
+reference_summaries*.json
+calculator/reference/private/
+
+# Partner / tracking data and calculator outputs
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.rds
+*.RData
+*.rda
+*.sqlite
+*.sqlite3
+*.db
+*_metrics.csv
+*_report.txt
+*_removed_fixes.csv
+*.zip
+
+# ---- Build / tools -------------------------------------------------------------
+node_modules/
+npm-debug.log*
+
+# ---- R / RStudio ---------------------------------------------------------------
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+.Rproj.user/
+*.Rproj
+
+# ---- OS / editor clutter -------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*
+*.tmp
+.vscode/
+.idea/
+.claude/

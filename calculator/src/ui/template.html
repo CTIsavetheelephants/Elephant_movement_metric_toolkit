@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elephant Movement Metrics Calculator</title>
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div><h1>Elephant Movement Metrics Calculator</h1><p>Clean GPS collar data and calculate movement metrics, on your own computer.</p></div>
+    </div>
+    <div class="privacy" title="This page has no server. Your file is read by your own browser only.">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Zm-1 14-4-4 1.4-1.4L11 13.2l4.6-4.6L17 10l-6 6Z"/></svg>
+      Your tracking data never leaves this computer
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="update hidden" id="updateBanner" role="status"></div>
+  <ol class="stepper" id="stepper">
+    <li data-step="1" class="on">Load data</li><li data-step="2">Check columns</li><li data-step="3">Elephants</li><li data-step="4">Calculate</li><li data-step="5">Results</li>
+  </ol>
+
+  <!-- 1. LOAD -->
+  <section class="card step" id="step1">
+    <h2>1. Load your tracking data</h2>
+    <p class="muted">A CSV or Excel export from your collar system (EarthRanger, Movebank, Africa Wildlife Tracking, Vectronic, Lotek, ...). One row per GPS fix. Several files with the same columns can be loaded together.</p>
+    <label class="drop" id="drop">
+      <input type="file" id="file" multiple accept=".csv,.txt,.tsv,.xlsx,.xls">
+      <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="currentColor" d="M19 15v4H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-4h-2ZM12 3 7 8l1.4 1.4L11 6.8V16h2V6.8l2.6 2.6L17 8l-5-5Z"/></svg>
+      <strong>Drop file(s) here</strong><span>or click to choose</span>
+    </label>
+    <details class="help"><summary>What does the file need?</summary>
+      <ul>
+        <li>An <b>elephant name or ID</b> column</li>
+        <li>A <b>date and time</b> for each fix (one column, or separate date and time columns)</li>
+        <li><b>Coordinates</b>: latitude/longitude in decimal degrees, UTM easting/northing, or a WKT "POINT (lon lat)" column</li>
+        <li>Optional: <b>sex</b>, species, collar ID, study area (you can also enter sex later)</li>
+      </ul>
+      <p>Fixes should be about 1-4 hours apart. Collars with a typical interval longer than 6 hours cannot be used for these metrics and are skipped.</p>
+    </details>
+    <p class="reopen">Already used this tool to calculate metrics? Drop the <b>*_metrics.csv</b> file it made here to look at your results again<span class="cmpOnly"> and compare them with other populations</span>.</p>
+  </section>
+
+  <!-- 2. COLUMNS -->
+  <section class="card step hidden" id="step2">
+    <h2>2. Check the columns we found</h2>
+    <p class="muted">We guessed which column holds what. Please check, and change any that are wrong.</p>
+    <div class="grid2">
+      <div><div id="mapFields"></div>
+        <p class="hint">Coordinates: latitude and longitude in decimal degrees are all that is needed. UTM easting/northing or a WKT column are only used when a file has no latitude/longitude.</p></div>
+      <div>
+        <div class="field">
+          <label>Are the times in the file UTC (GMT) or local time?</label>
+          <div class="seg" id="utcSeg">
+            <button data-v="utc" class="on">UTC / GMT</button><button data-v="local">Local time</button>
+          </div>
+          <p class="hint" id="utcHint"></p>
+        </div>
+        <div class="field">
+          <label for="tz">Time zone of the study area</label>
+          <select id="tz"></select>
+          <p class="hint" id="tzHint">Used to decide day and night (06:00-18:00 local).</p>
+        </div>
+        <div class="field hidden" id="dateOrderField">
+          <label for="dateOrder">Dates like 03/04/2021 mean</label>
+          <select id="dateOrder"><option value="dmy">3 April 2021 (day/month)</option><option value="mdy">March 4, 2021 (month/day)</option></select>
+        </div>
+        <div class="field hidden" id="utmField">
+          <label>UTM zone of the easting/northing</label>
+          <div class="row"><input type="number" id="utmZone" min="28" max="38" style="width:6em">
+            <select id="utmHemi"><option value="S">South (S)</option><option value="N">North (N)</option></select></div>
+        </div>
+      </div>
+    </div>
+    <h3>First rows of your file</h3>
+    <div class="tablewrap"><table id="preview"></table></div>
+    <div class="actions"><button class="ghost" data-go="1">Back</button><button class="primary" id="btnScan">Read the whole file</button></div>
+  </section>
+
+  <!-- 3. ELEPHANTS -->
+  <section class="card step hidden" id="step3">
+    <h2>3. Study area and elephants</h2>
+    <div class="field">
+      <label>Study area <span class="req">*</span></label>
+      <p class="sahint" id="saColHint"></p>
+      <div id="saList"></div>
+      <button class="small ghost" id="addSA">Add another study area</button>
+      <p class="hint">If some elephants belong to a different study area, add it here, then choose it for those elephants in the Study area column of the table below.</p>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="country">Country</label><input id="country"></div>
+      <div class="field"><label for="org">Organisation / project</label><input id="org" placeholder="optional"></div>
+    </div>
+    <div id="scanSummary" class="note"></div>
+    <div id="clockNote" class="note hidden"></div>
+    <h3>Elephants found <span class="muted" id="indCount"></span></h3>
+    <p class="muted">Sex is needed for the male/female comparisons. Set any that are missing or wrong.</p>
+    <div class="row gap"><button class="small ghost" id="allF">Set blanks to female</button><button class="small ghost" id="allM">Set blanks to male</button></div>
+    <div class="tablewrap tall"><table id="indTable"></table></div>
+    <div class="actions"><button class="ghost" data-go="2">Back</button>
+      <div class="runcol"><button class="primary" id="btnRun">Calculate metrics</button><button class="ghost" id="btnDefs">Metrics definitions</button></div></div>
+  </section>
+
+  <!-- 4. RUN -->
+  <section class="card step hidden" id="step4">
+    <h2>4. Calculating</h2>
+    <p class="muted">Cleaning the tracks automatically, resampling to 4-hour steps and computing 23 metrics. Large datasets can take a few minutes; keep this tab open.</p>
+    <div class="bar"><div id="barFill"></div></div>
+    <p id="stage" class="stage">Starting...</p>
+  </section>
+
+  <!-- 5. RESULTS -->
+  <section class="card step hidden" id="step5">
+    <h2>5. Results <span class="muted small" id="resTitle"></span></h2>
+
+    <div class="tabpanel" id="tabSummary">
+      <div class="stats" id="stats"></div>
+      <div class="nextsteps">
+        <button class="nextcard mon" data-open="tabMine"><b>Monitoring My Elephants</b>
+          <span>Follow each elephant over time, compare individuals and see seasonal patterns.</span></button>
+        <button class="nextcard cmp" data-open="tabCompare"><b>Compare with other populations</b>
+          <span>See where your population sits among forest, savannah and East African elephants.</span><em id="cmpCardAction"></em></button>
+      </div>
+      <div class="send" id="sendBox">
+        <div><b id="sendTitle">Send your metrics to Save the Elephants</b>
+          <span id="sendText">Needed to compare your results with other populations. Please send once your results are final. Sends only the metrics file (summary values per elephant-month and elephant-year; no locations or times). You see exactly what is sent first.</span></div>
+        <div class="sendgo"><span class="sendarrow" id="sendArrow" aria-hidden="true">&#10140;</span><button class="primary" id="btnSend">Send to Save the Elephants...</button></div>
+      </div>
+      <div class="downloads">
+        <div class="dl main"><div><b>Metrics file</b><span>Summary values per elephant-month and elephant-year. No locations or times of fixes. Save it: to look at your results again later, open this calculator and drop the file onto step 1 (Load data).</span></div><button class="primary" id="dlMetrics">Download</button></div>
+        <div class="dl" id="reportRow"><div><b>Run report</b><span>What was cleaned, excluded and calculated.</span></div><button id="dlReport">Download</button></div>
+        <div class="dl" id="removedRow"><div><b>Removed fixes</b><span>Every fix the automatic cleaning removed, with the reason. For your own records - do not share.</span></div><button id="dlRemoved">Download</button></div>
+      </div>
+      <div id="runDetails">
+        <div class="grid2">
+          <div><h3>What the cleaning removed</h3><table id="cleanTable" class="compact"></table></div>
+          <div><h3>Total values per metric</h3><table id="metricTable" class="compact"></table></div>
+        </div>
+        <h3>Monthly coverage (mean speed, km/h)</h3>
+        <div id="coverage" class="coverage"></div>
+      </div>
+    </div>
+
+    <div class="tabpanel hidden lockmsg" id="tabLocked">
+      <div class="viewhead"><button class="ghost small backsum">Back to summary</button><h3>Compare with other populations</h3></div>
+      <p><b>Send your metrics to Save the Elephants to compare your results with other populations.</b></p>
+      <p class="muted">Only the metrics file is sent: summary values per elephant-month and elephant-year, with no locations or times of fixes. Your tracking data stays on this computer.</p>
+      <button class="primary" id="btnSend2">Send to Save the Elephants...</button>
+    </div>
+
+    <div class="tabpanel hidden" id="tabMine">
+      <div class="viewhead"><button class="ghost small backsum">Back to summary</button><h3>Monitoring My Elephants</h3></div>
+      <div class="send hidden" id="mineReminder">
+        <div><b>Your metrics have not been sent to Save the Elephants yet</b>
+          <span>Please send them once your results are final.<span class="cmpOnly"> Sending also unlocks Compare with other populations.</span></span></div>
+        <button class="primary" id="btnSend3">Send to Save the Elephants...</button>
+      </div>
+      <div class="controls">
+        <div class="field"><label for="myMetric">Metric</label><select id="myMetric"></select></div>
+        <div class="field hidden" id="myAreaWrap"><label for="myArea">Study area</label><select id="myArea"></select></div>
+        <div class="field"><label for="myFocal">Focal elephant</label><select id="myFocal"></select></div>
+        <div class="field"><label>Figure</label>
+          <div class="radios"><label><input type="radio" name="myFig" value="ts" checked> Time series</label><label><input type="radio" name="myFig" value="z"> Z-score heat map</label>
+          <label><input type="radio" name="myFig" value="wheel"> Monthly wheel</label><label><input type="radio" name="myFig" value="cov"> Coverage</label></div></div>
+      </div>
+      <div class="field cmpwith"><label>Compare multiple elephants</label><p class="hint" style="margin:0">Tick elephants to show them alongside the focal elephant in every figure.</p><div id="myCompare" class="checks"></div></div>
+      <div id="myChart" class="chartbox"></div>
+      <div class="tablewrap"><table id="myTable" class="compact"></table></div>
+    </div>
+
+    <div class="tabpanel hidden" id="tabCompare">
+      <div class="viewhead"><button class="ghost small backsum">Back to summary</button><h3>Compare with other populations</h3></div>
+      <p class="muted small" id="refInfo"></p>
+      <div class="controls cmpcontrols">
+        <div class="field"><label for="cmpMetric">Comparison: select overview of all metrics or individual metrics</label><select id="cmpMetric"></select></div>
+        <div class="field" id="cmpSexWrap"><label for="cmpSex">Elephants: select all or by sex</label><select id="cmpSex"><option value="All">All</option><option value="Female">Females</option><option value="Male">Males</option></select></div>
+        <div class="field" id="cmpViewWrap"><label>View</label>
+          <div class="radios"><label><input type="radio" name="cmpView" value="global" checked> Overall</label><label><input type="radio" name="cmpView" value="year"> By year</label>
+          <label><input type="radio" name="cmpView" value="month"> Seasonal</label></div></div>
+      </div>
+      <div class="field"><label>Compare with</label><div class="checks stacked" id="cmpGroups"></div></div>
+      <div id="cmpChart" class="chartbox"></div>
+    </div>
+
+    <div class="actions"><button class="ghost" data-go="3" id="btnBack3">Change settings and recalculate</button><button class="ghost" id="restart">Start again with another file</button></div>
+  </section>
+
+  <dialog id="sendDlg">
+    <form method="dialog" id="sendForm">
+      <h2>Send to Save the Elephants</h2>
+      <p class="muted">This is everything that will be sent:</p>
+      <div class="note" id="sendWhat"></div>
+      <div class="grid2">
+        <div class="field"><label for="sName">Your name</label><input id="sName" autocomplete="name"></div>
+        <div class="field"><label for="sEmail">Your e-mail (for questions)</label><input id="sEmail" type="email" autocomplete="email"></div>
+      </div>
+      <div class="field"><label for="sMsg">Message (optional)</label><textarea id="sMsg" rows="3"></textarea></div>
+      <label class="check"><input type="checkbox" id="sReport" checked> Also send the run report (cleaning and calculation summary; no locations)</label>
+      <p class="hint" id="sendHow"></p>
+      <div class="actions"><button value="cancel" class="ghost">Cancel</button><button value="send" class="primary" id="sendGo">Send</button></div>
+    </form>
+  </dialog>
+
+  <section class="card hidden" id="stepDefs">
+    <div class="viewhead"><button class="ghost small" id="defsBack">Back</button><h2>Metrics definitions</h2></div>
+    <div id="defsBody"></div>
+    <div class="actions"><button class="ghost" id="defsBack2">Back</button></div>
+  </section>
+
+  <div class="card error hidden" id="err"></div>
+</main>
+<footer class="wrap foot">Elephant Movement Metrics Calculator v<span id="ver"></span> &middot; Save the Elephants &middot; Works offline</footer>
+
+<script type="application/json" id="ref-data">/*__REF__*/</script>
+<script type="application/json" id="diel-data">/*__DIEL__*/</script>
+<script type="text/plain" id="worker-src">/*__WORKER__*/</script>
+<script>/*__APP__*/</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "siteUrl": "https://ctisavetheelephants.github.io/Elephant_movement_metric_toolkit/",
+  "receiverUrl": "https://script.google.com/macros/s/AKfycbwD94fdHznINR7T9z2kmT8K8-CBJcg7G2tqqqek-yj4O8ktR10FAV4ToSVUNPhTQKETsw/exec",
+  "sendEmail": "angela@savetheelephants.org",
+  "compareEnabled": false,
+  "referencePath": "../../Elephant_metrics_shiny/data/metrics/reference_summaries.json"
+}

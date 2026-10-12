@@ -4,7 +4,7 @@
 
 A free tool from [Save the Elephants](https://www.savetheelephants.org) for people who track elephants with GPS collars. You load your collar data, and the calculator:
 
-1. **cleans it automatically**, removing bad fixes, duplicates, GPS spikes and collars sitting in an office before deployment
+1. **cleans it automatically**, removing bad fixes, duplicates, GPS spikes and collars sitting in an office before deployment. If possible, please check your data before loading it, as the automatic cleaning may miss less obvious errors
 2. **calculates 23 movement metrics** for every elephant: speeds, day/night activity, displacement, home-range size, range overlap, residence time and more
 3. **shows your elephants** over time, side by side, as heat maps and as seasonal "wheels"
 4. **lets you download** the results and, if you choose, **send them to Save the Elephants**
@@ -22,7 +22,7 @@ Everything runs inside your web browser. There is nothing to install, and no acc
 
 ---
 
-## How to use it (partners)
+## How to use it
 
 ### Online
 Open the link above, and follow the five steps on the page:
@@ -38,7 +38,7 @@ Open the link above, and follow the five steps on the page:
 
 To look at your results again later, open the calculator and drop your saved `*_metrics.csv` file onto step 1. The **Metrics definitions** button (step 3) explains every metric.
 
-### Offline (e.g. in the field)
+### Offline use (e.g., outside internet coverage)
 Open the link once while you have internet, then save the page:
 - **Windows / Linux:** press **Ctrl+S**
 - **Mac:** press **Cmd+S**
@@ -95,7 +95,7 @@ Then open `docs/index.html` in your browser (double-click it in File Explorer).
 ### Switching "Compare with other populations" back on
 Only do this once partners have agreed: **the summaries then become part of the public page.**
 
-1. In RStudio, open `calculator/reference/build_reference.R` and click **Source**. It writes `reference_summaries.json` next to `metrics_long.csv` in `Elephant_metrics_shiny/data/metrics/`, outside this repo, which is where `referencePath` points.
+1. In RStudio, open `calculator/reference/build_reference.R` and click **Source**. It writes `reference_summaries.json` next to STE's reference computed metrics file, outside this repo, which is where `referencePath` points.
 2. In `calculator/release.config.json`, change `"compareEnabled": false` to `"compareEnabled": true`.
 3. Release a new version as above, e.g. `whats_new <- "Compare with other populations is now open"`.
 
@@ -120,7 +120,7 @@ The repository must be **public** for GitHub Pages on a free organisation plan.
 ### Reference data and the clock-check template
 | File | Built by | In this repo? |
 |---|---|---|
-| `reference_summaries.json`: pooled group summaries for *Compare* | `calculator/reference/build_reference.R`, from `metrics_long.csv` | **No.** Written outside the repo; also blocked by `.gitignore`. |
+| `reference_summaries.json`: pooled group summaries for *Compare* | `calculator/reference/build_reference.R`, from STE's reference computed metrics file | **No.** Written outside the repo; also blocked by `.gitignore`. |
 | `calculator/reference/diel_template.json`: one averaged 24-hour movement-rhythm curve (96 numbers) used by the step-2 clock check (UTC vs local time) | `calculator/reference/build_diel_template.R`, from the cleaned tracking files | Yes. It holds no names, locations, sites or individual values. |
 
 ---
@@ -155,7 +155,7 @@ These are a line-by-line port of STE's R metrics pipeline:
 - coverage filters
 - all 23 metrics, including fixed 1 km kernel utilisation distributions, volume-of-intersection and Bhattacharyya overlaps, 100% MCP, and an exact thresholded Earth Mover's Distance
 
-The output has the same columns as STE's `metrics_long.csv`, plus `organisation` and `tool_version`. The calculator was validated against the R pipeline: all 23 metrics agree to the reported decimals.
+The output has the same columns as STE's reference computed metrics file, plus `organisation` and `tool_version`. The calculator was validated against the R pipeline: all 23 metrics agree to the reported decimals.
 
 ### Compatibility flags
 `src/ui/app.js` passes `compat: { pointsUTC: false, emdMaskFlip: false }`. Setting them to `true` reproduces two behaviours of older versions of the R pipeline, which have since been fixed. This is only for checking old outputs.

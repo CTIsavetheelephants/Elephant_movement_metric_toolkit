@@ -25,7 +25,7 @@ To flag outdated calculators, the receiver reads the public `version.json` from 
 
 Without a `receiverUrl`, the Send button instead downloads the file and opens an e-mail to you for the partner to attach it.
 
-**Changing the script later** (for example, after pasting a new `Code.gs`): use **Deploy → Manage deployments → Edit (pencil) → Version: New version → Deploy**. That keeps the same URL, so calculators already handed out keep working. Fill in `FOLDER_ID` again, because the copy in this repo only has a placeholder.
+**Changing the script later** (for example, after pasting a new `Code.gs`): use **Deploy → Manage deployments → Edit (pencil) → Version: New version → Deploy**. That keeps the same URL, so calculators already handed out keep working. Fill in `FOLDER_ID` again, because the copy in this repo only has a placeholder. Before deploying, choose `testVersionCheck` in the function menu and click **Run**: it asks for any new permissions and logs the version note.
 
 ## What a public receiver URL exposes
 

@@ -108,6 +108,12 @@ function versionStatus_(v) {
   if (cmpVer_(v, note.latest) < 0) return { flag: 'OLDER CALCULATOR v' + v, text: 'latest is ' + note.latest };
   return { flag: '', text: 'up to date' };
 }
+// Run this once from the editor (select it, click Run) after pasting a new Code.gs:
+// it asks for any new permissions and logs the version note read from GitHub.
+function testVersionCheck() {
+  CacheService.getScriptCache().remove('version_note');
+  Logger.log(JSON.stringify(versionNote_()));
+}
 
 function clean_(s) { return String(s || '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '_').slice(0, 60); }
 function esc_(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }

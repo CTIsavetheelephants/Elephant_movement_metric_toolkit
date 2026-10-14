@@ -216,7 +216,8 @@ textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px 
   <!-- 1. LOAD -->
   <section class="card step" id="step1">
     <h2>1. Load your tracking data</h2>
-    <p class="muted">A CSV or Excel export from your collar system (EarthRanger, Movebank, Africa Wildlife Tracking, Vectronic, Lotek, ...). One row per GPS fix. Several files with the same columns can be loaded together.</p>
+    <p class="muted">A CSV or Excel export from your collar system (EarthRanger, Movebank, Africa Wildlife Tracking, Vectronic, Lotek, ...). One row per GPS fix.</p>
+    <p class="note"><b>Load all your files for this study area at once</b>, covering the whole time since the collars were fitted, not just your latest download. Select or drop several files together; overlapping downloads are fine (repeated fixes are removed). If you saved the <b>combined tracking data</b> file from a previous run, load it together with your new download(s).</p>
     <label class="drop" id="drop">
       <input type="file" id="file" multiple accept=".csv,.txt,.tsv,.xlsx,.xls">
       <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="currentColor" d="M19 15v4H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-4h-2ZM12 3 7 8l1.4 1.4L11 6.8V16h2V6.8l2.6 2.6L17 8l-5-5Z"/></svg>
@@ -265,6 +266,7 @@ textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px 
         </div>
       </div>
     </div>
+    <p class="note hidden" id="histNote"></p>
     <h3>First rows of your file</h3>
     <div class="tablewrap"><table id="preview"></table></div>
     <div class="actions"><button class="ghost" data-go="1">Back</button><button class="primary" id="btnScan">Read the whole file</button></div>
@@ -286,6 +288,7 @@ textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px 
     </div>
     <div id="scanSummary" class="note"></div>
     <div id="clockNote" class="note hidden"></div>
+    <div id="spanNote" class="note warn hidden"></div>
     <h3>Elephants found <span class="muted" id="indCount"></span></h3>
     <p class="muted">Sex is needed for the male/female comparisons. Set any that are missing or wrong.</p>
     <div class="row gap"><button class="small ghost" id="allF">Set blanks to female</button><button class="small ghost" id="allM">Set blanks to male</button></div>
@@ -322,6 +325,7 @@ textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px 
       <div class="downloads">
         <div class="dl main"><div><b>Metrics file</b><span>Summary values per elephant-month and elephant-year. No locations or times of fixes. Save it: to look at your results again later, open this calculator and drop the file onto step 1 (Load data).</span></div><button class="primary" id="dlMetrics">Download</button></div>
         <div class="dl" id="reportRow"><div><b>Run report</b><span>What was cleaned, excluded and calculated.</span></div><button id="dlReport">Download</button></div>
+        <div class="dl" id="historyRow"><div><b>Combined tracking data</b><span>All the GPS fixes you loaded, from every file, in one file (repeated fixes removed, before cleaning). Keep it: next time, load it on step 1 together with your new download, so the metrics use your elephants' whole history. Contains locations and times - for your own records, do not share.</span></div><button id="dlHistory">Download</button></div>
         <div class="dl" id="removedRow"><div><b>Removed fixes</b><span>Every fix the automatic cleaning removed, with the reason. For your own records - do not share.</span></div><button id="dlRemoved">Download</button></div>
       </div>
       <div id="runDetails">
@@ -2279,7 +2283,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  * output files. Used by the calculator's Web Worker. */
 (function (G) {
   const EMT = (G.EMT = G.EMT || {});
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
 
   /* settings: {studyArea, country, tz, sexByName: {name: 'female'|'male'|''},
    *            anonymise, organisation, compat, sourceFiles} */
@@ -2597,7 +2601,24 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
 /* Web Worker: all file reading, cleaning and metric work happens here so the page
  * stays responsive. The core (EMT.*) is prepended to this file at build time. */
-let state = { files: [], excel: null, fixes: null, headers: null, mapping: null };
+let state = { files: [], excel: null, fixes: null, headers: null, mapping: null, primary: 0, history: new Set() };
+
+/* "Combined tracking data" file: every fix the user loaded, written by makeHistory()
+ * after a run so it can be loaded again next time with a new download. Recognised by
+ * its exact header and always read with this fixed mapping (times are UTC, "Z"). */
+const HISTORY_COLS = ["name", "tag", "sex", "study_area", "timestamp_utc", "lon", "lat"];
+const isHistoryHeader = (h) => h.map((c) => String(c).trim()).join(",") === HISTORY_COLS.join(",");
+const HISTORY_MAPPING = {
+  cols: { id: 0, tag: 1, sex: 2, studyArea: 3, timestamp: 4, date: -1, time: -1, lon: 5, lat: 6, x: -1, y: -1, geometry: -1, species: -1 },
+  coordMode: "lonlat", dateOrder: "dmy", assumeUTC: true, tz: "UTC", speciesFilter: false,
+};
+async function firstRow(file) {
+  const head = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+  if (EMT.parse.isExcel(head)) return null;
+  let row = null;
+  await EMT.parse.streamCSV(file, (r) => { if (!row) row = r; }, { maxRows: 1 });
+  return row;
+}
 
 const post = (msg) => self.postMessage(msg);
 const progress = (stage, frac) => post({ cmd: "progress", stage, frac });
@@ -2615,8 +2636,12 @@ async function readHead(file, n) {
 }
 
 async function preview(files) {
-  state = { files, excel: null, fixes: null };
-  const h = await readHead(files[0], 3000);
+  state = { files, excel: null, fixes: null, primary: 0, history: new Set() };
+  for (let i = 0; i < files.length; i++) { const r = await firstRow(files[i]); if (r && isHistoryHeader(r)) state.history.add(i); }
+  // columns are checked on the first file that is NOT a combined tracking data file
+  const prim = files.findIndex((_, i) => !state.history.has(i));
+  state.primary = prim >= 0 ? prim : 0;
+  const h = await readHead(files[state.primary], 3000);
   state.excel = h.excel;
   state.headers = h.headers;
   const det = EMT.parse.detectColumns(h.headers, h.sample);
@@ -2638,14 +2663,16 @@ async function preview(files) {
     }
   }
   post({ cmd: "preview", headers: h.headers, sample: h.sample.slice(0, 8).map((r) => r.map((v) => (v === null || v === undefined ? "" : String(v)))),
-         det, lookup, utm, allTZ: EMT.tzlookup.ALL_TZ, nFiles: files.length });
+         det, lookup, utm, allTZ: EMT.tzlookup.ALL_TZ, nFiles: files.length,
+         primaryName: files[state.primary].name, nHistory: state.history.size, onlyHistory: prim < 0 });
 }
 
 async function scan(mapping, template) {
   state.mapping = mapping;
   const fixes = [], dropped = {};
-  const add = (res) => {
-    for (const f of res.fixes) fixes.push(f);
+  let nHistoryFixes = 0;
+  const add = (res, hist) => {
+    for (const f of res.fixes) { if (hist) { f.hist = true; nHistoryFixes++; } fixes.push(f); }
     for (const [k, v] of Object.entries(res.dropped)) dropped[k] = (dropped[k] || 0) + v;
   };
   for (let fi = 0; fi < state.files.length; fi++) {
@@ -2658,7 +2685,17 @@ async function scan(mapping, template) {
       for (const [k, i] of Object.entries(mapping.cols)) m[k] = i >= 0 ? idx.indexOf(state.headers[i]) : -1;
       return m;
     };
-    if (fi === 0 && state.excel) {
+    if (state.history.has(fi)) {       // combined tracking data file: fixed mapping
+      let batch = [], first = true;
+      await EMT.parse.streamCSV(file, (r) => {
+        if (first) { first = false; return; }
+        batch.push(r);
+        if (batch.length >= 50000) { add(EMT.parse.extractFixes(batch, HISTORY_MAPPING), true); batch = []; }
+      }, { onProgress: (f) => progress(label, f) });
+      if (batch.length) add(EMT.parse.extractFixes(batch, HISTORY_MAPPING), true);
+      continue;
+    }
+    if (fi === state.primary && state.excel) {
       add(EMT.parse.extractFixes(state.excel.slice(1), mapping));
       progress(label, 1);
       continue;
@@ -2689,12 +2726,15 @@ async function scan(mapping, template) {
     if (f.sex) g[f.sex]++;
     if (f.sa) g.sa.set(f.sa, (g.sa.get(f.sa) || 0) + 1);
   }
-  const clock = mapping.explicitZone ? { verdict: "explicit" }
-    : EMT.diel.checkClock(fixes, { template, tz: mapping.tz, assumeUTC: mapping.assumeUTC });
+  // the clock check looks only at the newly loaded files (a combined tracking data
+  // file is already in UTC); with only combined files there is nothing to check
+  const newFixes = nHistoryFixes ? fixes.filter((f) => !f.hist) : fixes;
+  const clock = mapping.explicitZone || !newFixes.length ? { verdict: "explicit" }
+    : EMT.diel.checkClock(newFixes, { template, tz: mapping.tz, assumeUTC: mapping.assumeUTC });
   const lookup = fixes.length ? EMT.tzlookup.lookup(fixes.map((f) => f.lon), fixes.map((f) => f.lat)) : null;
   const sas = new Set(fixes.map((f) => f.sa).filter(Boolean));
   post({
-    cmd: "scanned", nFixes: fixes.length, dropped, lookup, clock, studyAreas: [...sas].slice(0, 50),
+    cmd: "scanned", nFixes: fixes.length, nHistoryFixes, dropped, lookup, clock, studyAreas: [...sas].slice(0, 50),
     individuals: [...ind.values()].sort((a, b) => (a.name < b.name ? -1 : 1)).map((g) => ({
       name: g.name, n: g.n, first: g.first, last: g.last,
       sex: g.female || g.male ? (g.female >= g.male ? "female" : "male") : "",
@@ -2726,12 +2766,31 @@ function run(settings) {
   });
 }
 
+/* Every fix the user loaded (all files, BEFORE cleaning, exact repeats removed) as one
+ * "combined tracking data" CSV, with the sex and study area confirmed on step 3. */
+function makeHistory(settings) {
+  const sexBy = settings.sexByName || {}, saBy = settings.studyAreaByName || {};
+  const fx = state.fixes.slice().sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : a.t - b.t));
+  const q = (v) => { const s = String(v ?? ""); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const lines = [HISTORY_COLS.join(",")];
+  let prev = null;
+  for (const f of fx) {
+    if (prev && prev.name === f.name && prev.t === f.t) continue;
+    prev = f;
+    const sex = sexBy[f.name] === "female" || sexBy[f.name] === "male" ? sexBy[f.name] : f.sex || "";
+    const sa = saBy[f.name] || f.sa || settings.studyArea || "";
+    lines.push([q(f.name), q(f.tag || ""), sex, q(sa), new Date(f.t).toISOString(), f.lon, f.lat].join(","));
+  }
+  post({ cmd: "history", csv: lines.join("\n") + "\n" });
+}
+
 self.onmessage = async (e) => {
   try {
     const d = e.data;
     if (d.cmd === "preview") await preview(d.files);
     else if (d.cmd === "scan") await scan(d.mapping, d.template);
     else if (d.cmd === "run") run(d.settings);
+    else if (d.cmd === "history") makeHistory(d.settings);
   } catch (err) {
     post({ cmd: "error", message: (err && err.message) || String(err) });
   }
@@ -3932,7 +3991,7 @@ self.onmessage = async (e) => {
 (function () {
   const SEND_URL = "https://script.google.com/macros/s/AKfycbwD94fdHznINR7T9z2kmT8K8-CBJcg7G2tqqqek-yj4O8ktR10FAV4ToSVUNPhTQKETsw/exec";       // Apps Script receiver (receiver/README.md), Send button only; empty = e-mail fallback
   const SEND_EMAIL = "angela@savetheelephants.org";
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
   const SITE_URL = "https://ctisavetheelephants.github.io/Elephant_movement_metric_toolkit/";       // GitHub Pages site: serves version.json and the latest calculator
   const COMPARE = "off" === "on";   // release.config.json "compareEnabled"; off = Compare greyed out ("Coming soon")
   const $ = (id) => document.getElementById(id);
@@ -4030,7 +4089,7 @@ self.onmessage = async (e) => {
     results = { settings: { studyArea: sas.join(", "), organisation: rows[0].organisation || "" }, rows, metricsCSV: await f.text(), report: null,
                 fromFile: f.name, tool_version: rows[0].tool_version || "" };
     $("resTitle").textContent = "- " + f.name;
-    ["reportRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.add("hidden"));
+    ["reportRow", "historyRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.add("hidden"));
     $("stats").innerHTML = `<div class="stat"><b>${sas.length}</b><span>study area(s): ${esc(sas.join(", "))}</span></div>` +
       `<div class="stat"><b>${new Set(rows.filter((r) => r.Name).map((r) => r.Study_Area + r.Name)).size}</b><span>elephants</span></div>` +
       `<div class="stat"><b>${fmtN(rows.length)}</b><span>total metric values</span></div>`;
@@ -4071,7 +4130,12 @@ self.onmessage = async (e) => {
     $("dateOrderField").classList.toggle("hidden", !ambiguous);
     $("utmField").classList.toggle("hidden", p.det.coordMode !== "utm");
     if (p.utm) { $("utmZone").value = p.utm.zone; $("utmHemi").value = p.utm.south ? "S" : "N"; }
-    defaultSA = files[0].name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").replace(/\b(clean|data|export|gps|fixes?)\b/gi, "").trim();
+    // combined tracking data file(s) are read automatically; the columns shown are another file's
+    $("histNote").classList.toggle("hidden", !p.nHistory);
+    $("histNote").textContent = !p.nHistory ? ""
+      : p.onlyHistory ? "This is a combined tracking data file saved by this calculator: its columns are already set below."
+      : `Your combined tracking data file${p.nHistory > 1 ? "s are" : " is"} read automatically. The columns below are from ${p.primaryName}; please check them.`;
+    defaultSA = p.primaryName.replace(/\.[^.]+$/, "").replace(/_?\d{4}-\d{2}-\d{2}_combined_tracking_data$/, "").replace(/[_-]+/g, " ").replace(/\b(clean|data|export|gps|fixes?)\b/gi, "").trim();
     renderPreview();
     drop.querySelector("strong").textContent = "Drop file(s) here";
     go(2);
@@ -4195,11 +4259,14 @@ self.onmessage = async (e) => {
     const dropTxt = Object.entries(s.dropped).map(([k, v]) => `${fmtN(v)} ${({ no_id: "without an elephant ID", bad_timestamp: "with an unreadable date/time", no_coordinates: "without coordinates", not_elephant: "of other species" })[k] || k}`).join(", ");
     $("scanSummary").innerHTML = `Read <b>${fmtN(s.nFixes)}</b> GPS fixes for <b>${s.individuals.length}</b> elephants` +
       (dropTxt ? `. Skipped rows: ${esc(dropTxt)}.` : ".");
+    if (s.nHistoryFixes) $("scanSummary").innerHTML += ` This includes <b>${fmtN(s.nHistoryFixes)}</b> fixes from your combined tracking data file.`;
     $("scanSummary").className = "note" + (s.dropped.bad_timestamp > s.nFixes * 0.05 ? " warn" : "");
     showClock(s.clock);
+    showSpan(s.individuals);
     if (s.lookup && !$("country").value) $("country").value = s.lookup.country;
-    // study areas: from the file's study-area column if it has one, else one area named from the file
-    const saCol = +$("m_studyArea").value >= 0 && s.studyAreas.length > 0;
+    // study areas: from the file's study-area column (or a combined tracking data file) if
+    // there is one, else one area named from the file
+    const saCol = (+$("m_studyArea").value >= 0 || s.nHistoryFixes > 0) && s.studyAreas.length > 0;
     saNames = saCol ? s.studyAreas.slice() : [defaultSA];
     if (saCol && s.individuals.some((g) => !g.sa)) saNames.push(defaultSA);          // elephants with blank study area
     s.individuals.forEach((g) => (g.saIdx = g.sa && saNames.includes(g.sa) ? saNames.indexOf(g.sa) : saNames.length - 1));
@@ -4216,6 +4283,26 @@ self.onmessage = async (e) => {
     renderSAs();
     document.querySelectorAll("#indTable .sasel").forEach((sel) => (sel.value = String(s.individuals[+sel.dataset.i].saIdx)));
     go(3);
+  }
+  // Warn when the data look like a single download rather than the whole history:
+  // annual metrics need >= 6 months in a calendar year, year-to-year metrics need
+  // consecutive years, and cleaning treats the start/end of each track specially.
+  function showSpan(inds) {
+    const box = $("spanNote"), DAY = 864e5;
+    const first = Math.min(...inds.map((g) => g.first)), last = Math.max(...inds.map((g) => g.last));
+    const months = Math.round((last - first) / DAY / 30.44);
+    const short = inds.filter((g) => (g.last - g.first) / DAY < 183).length;
+    const why = "Annual metrics (home range, MCP area, intensity of use, yearly displacement) need at least 6 months within a calendar year, " +
+                "and year-to-year metrics (range overlap and space-use shift from the previous year) need consecutive years. ";
+    const fix = "If you have earlier downloads for these elephants, go back to step 1 and load all the files together, " +
+                "or load your <b>combined tracking data</b> file from last time together with the new download.";
+    let head = "";
+    if ((last - first) / DAY < 395) head = `Your data cover only about ${months} month${months === 1 ? "" : "s"} (${fmtD(first)} to ${fmtD(last)}). `;
+    else if (short > inds.length / 2) head = `${short} of your ${inds.length} elephants have less than 6 months of data. `;
+    if (!head) { box.className = "note warn hidden"; return; }
+    box.className = "note warn";
+    box.innerHTML = `<b>${head}</b>${why}${fix}<div class="row gap" style="margin-top:8px"><button class="small ghost" id="spanBack">Back to step 1</button></div>`;
+    $("spanBack").onclick = () => { $("file").value = ""; go(1); };
   }
   // ---- study-area names and per-elephant assignment
   let saNames = [], fileSACount = 0, defaultSA = "";
@@ -4295,7 +4382,7 @@ self.onmessage = async (e) => {
     const cl = Object.entries(c.counts).sort((a, b) => b[1] - a[1]);
     $("cleanTable").innerHTML = "<tbody>" + (cl.length ? cl.map(([k, v]) => `<tr><td>${L[k] || k}</td><td>${fmtN(v)}</td></tr>`).join("") : "<tr><td>Nothing needed removing</td><td>0</td></tr>") + "</tbody>";
     $("metricTable").innerHTML = "<tbody>" + Object.entries(r.perMetric).map(([k, v]) => `<tr><td>${k}</td><td>${fmtN(v)}</td></tr>`).join("") + "</tbody>";
-    ["reportRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.remove("hidden"));
+    ["reportRow", "historyRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.remove("hidden"));
     $("resTitle").textContent = "";
     drawCoverage(r.coverage);
     EMTExplore.init(r.rows);
@@ -4426,6 +4513,10 @@ self.onmessage = async (e) => {
   $("dlMetrics").addEventListener("click", () => save(results.metricsCSV, stem() + "_metrics.csv"));
   $("dlReport").addEventListener("click", () => save(results.report, stem() + "_report.txt"));
   $("dlRemoved").addEventListener("click", () => save(results.removed, stem() + "_removed_fixes.csv"));
+  $("dlHistory").addEventListener("click", () => {
+    $("dlHistory").disabled = true; $("dlHistory").textContent = "Preparing...";
+    worker.postMessage({ cmd: "history", settings: results.settings });
+  });
   $("restart").addEventListener("click", () => { $("file").value = ""; $("country").value = ""; go(1); });
 
   // ------------------------------------------------------------- worker messages
@@ -4437,6 +4528,10 @@ self.onmessage = async (e) => {
       $("barFill").style.width = Math.round(d.frac * 100) + "%"; $("stage").textContent = d.stage;
       if (!$("step2").classList.contains("hidden")) $("btnScan").textContent = `${d.stage} ${Math.round(d.frac * 100)}%`;
     } else if (d.cmd === "done") showResults(d);
+    else if (d.cmd === "history") {
+      save(d.csv, stem() + "_combined_tracking_data.csv");
+      $("dlHistory").disabled = false; $("dlHistory").textContent = "Download";
+    }
     else if (d.cmd === "error") {
       $("btnScan").disabled = false; $("btnScan").textContent = "Read the whole file";
       drop.querySelector("strong").textContent = "Drop file(s) here";

@@ -100,7 +100,7 @@
     results = { settings: { studyArea: sas.join(", "), organisation: rows[0].organisation || "" }, rows, metricsCSV: await f.text(), report: null,
                 fromFile: f.name, tool_version: rows[0].tool_version || "" };
     $("resTitle").textContent = "- " + f.name;
-    ["reportRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.add("hidden"));
+    ["reportRow", "historyRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.add("hidden"));
     $("stats").innerHTML = `<div class="stat"><b>${sas.length}</b><span>study area(s): ${esc(sas.join(", "))}</span></div>` +
       `<div class="stat"><b>${new Set(rows.filter((r) => r.Name).map((r) => r.Study_Area + r.Name)).size}</b><span>elephants</span></div>` +
       `<div class="stat"><b>${fmtN(rows.length)}</b><span>total metric values</span></div>`;
@@ -141,7 +141,12 @@
     $("dateOrderField").classList.toggle("hidden", !ambiguous);
     $("utmField").classList.toggle("hidden", p.det.coordMode !== "utm");
     if (p.utm) { $("utmZone").value = p.utm.zone; $("utmHemi").value = p.utm.south ? "S" : "N"; }
-    defaultSA = files[0].name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").replace(/\b(clean|data|export|gps|fixes?)\b/gi, "").trim();
+    // combined tracking data file(s) are read automatically; the columns shown are another file's
+    $("histNote").classList.toggle("hidden", !p.nHistory);
+    $("histNote").textContent = !p.nHistory ? ""
+      : p.onlyHistory ? "This is a combined tracking data file saved by this calculator: its columns are already set below."
+      : `Your combined tracking data file${p.nHistory > 1 ? "s are" : " is"} read automatically. The columns below are from ${p.primaryName}; please check them.`;
+    defaultSA = p.primaryName.replace(/\.[^.]+$/, "").replace(/_?\d{4}-\d{2}-\d{2}_combined_tracking_data$/, "").replace(/[_-]+/g, " ").replace(/\b(clean|data|export|gps|fixes?)\b/gi, "").trim();
     renderPreview();
     drop.querySelector("strong").textContent = "Drop file(s) here";
     go(2);
@@ -265,11 +270,14 @@
     const dropTxt = Object.entries(s.dropped).map(([k, v]) => `${fmtN(v)} ${({ no_id: "without an elephant ID", bad_timestamp: "with an unreadable date/time", no_coordinates: "without coordinates", not_elephant: "of other species" })[k] || k}`).join(", ");
     $("scanSummary").innerHTML = `Read <b>${fmtN(s.nFixes)}</b> GPS fixes for <b>${s.individuals.length}</b> elephants` +
       (dropTxt ? `. Skipped rows: ${esc(dropTxt)}.` : ".");
+    if (s.nHistoryFixes) $("scanSummary").innerHTML += ` This includes <b>${fmtN(s.nHistoryFixes)}</b> fixes from your combined tracking data file.`;
     $("scanSummary").className = "note" + (s.dropped.bad_timestamp > s.nFixes * 0.05 ? " warn" : "");
     showClock(s.clock);
+    showSpan(s.individuals);
     if (s.lookup && !$("country").value) $("country").value = s.lookup.country;
-    // study areas: from the file's study-area column if it has one, else one area named from the file
-    const saCol = +$("m_studyArea").value >= 0 && s.studyAreas.length > 0;
+    // study areas: from the file's study-area column (or a combined tracking data file) if
+    // there is one, else one area named from the file
+    const saCol = (+$("m_studyArea").value >= 0 || s.nHistoryFixes > 0) && s.studyAreas.length > 0;
     saNames = saCol ? s.studyAreas.slice() : [defaultSA];
     if (saCol && s.individuals.some((g) => !g.sa)) saNames.push(defaultSA);          // elephants with blank study area
     s.individuals.forEach((g) => (g.saIdx = g.sa && saNames.includes(g.sa) ? saNames.indexOf(g.sa) : saNames.length - 1));
@@ -286,6 +294,26 @@
     renderSAs();
     document.querySelectorAll("#indTable .sasel").forEach((sel) => (sel.value = String(s.individuals[+sel.dataset.i].saIdx)));
     go(3);
+  }
+  // Warn when the data look like a single download rather than the whole history:
+  // annual metrics need >= 6 months in a calendar year, year-to-year metrics need
+  // consecutive years, and cleaning treats the start/end of each track specially.
+  function showSpan(inds) {
+    const box = $("spanNote"), DAY = 864e5;
+    const first = Math.min(...inds.map((g) => g.first)), last = Math.max(...inds.map((g) => g.last));
+    const months = Math.round((last - first) / DAY / 30.44);
+    const short = inds.filter((g) => (g.last - g.first) / DAY < 183).length;
+    const why = "Annual metrics (home range, MCP area, intensity of use, yearly displacement) need at least 6 months within a calendar year, " +
+                "and year-to-year metrics (range overlap and space-use shift from the previous year) need consecutive years. ";
+    const fix = "If you have earlier downloads for these elephants, go back to step 1 and load all the files together, " +
+                "or load your <b>combined tracking data</b> file from last time together with the new download.";
+    let head = "";
+    if ((last - first) / DAY < 395) head = `Your data cover only about ${months} month${months === 1 ? "" : "s"} (${fmtD(first)} to ${fmtD(last)}). `;
+    else if (short > inds.length / 2) head = `${short} of your ${inds.length} elephants have less than 6 months of data. `;
+    if (!head) { box.className = "note warn hidden"; return; }
+    box.className = "note warn";
+    box.innerHTML = `<b>${head}</b>${why}${fix}<div class="row gap" style="margin-top:8px"><button class="small ghost" id="spanBack">Back to step 1</button></div>`;
+    $("spanBack").onclick = () => { $("file").value = ""; go(1); };
   }
   // ---- study-area names and per-elephant assignment
   let saNames = [], fileSACount = 0, defaultSA = "";
@@ -365,7 +393,7 @@
     const cl = Object.entries(c.counts).sort((a, b) => b[1] - a[1]);
     $("cleanTable").innerHTML = "<tbody>" + (cl.length ? cl.map(([k, v]) => `<tr><td>${L[k] || k}</td><td>${fmtN(v)}</td></tr>`).join("") : "<tr><td>Nothing needed removing</td><td>0</td></tr>") + "</tbody>";
     $("metricTable").innerHTML = "<tbody>" + Object.entries(r.perMetric).map(([k, v]) => `<tr><td>${k}</td><td>${fmtN(v)}</td></tr>`).join("") + "</tbody>";
-    ["reportRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.remove("hidden"));
+    ["reportRow", "historyRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.remove("hidden"));
     $("resTitle").textContent = "";
     drawCoverage(r.coverage);
     EMTExplore.init(r.rows);
@@ -496,6 +524,10 @@
   $("dlMetrics").addEventListener("click", () => save(results.metricsCSV, stem() + "_metrics.csv"));
   $("dlReport").addEventListener("click", () => save(results.report, stem() + "_report.txt"));
   $("dlRemoved").addEventListener("click", () => save(results.removed, stem() + "_removed_fixes.csv"));
+  $("dlHistory").addEventListener("click", () => {
+    $("dlHistory").disabled = true; $("dlHistory").textContent = "Preparing...";
+    worker.postMessage({ cmd: "history", settings: results.settings });
+  });
   $("restart").addEventListener("click", () => { $("file").value = ""; $("country").value = ""; go(1); });
 
   // ------------------------------------------------------------- worker messages
@@ -507,6 +539,10 @@
       $("barFill").style.width = Math.round(d.frac * 100) + "%"; $("stage").textContent = d.stage;
       if (!$("step2").classList.contains("hidden")) $("btnScan").textContent = `${d.stage} ${Math.round(d.frac * 100)}%`;
     } else if (d.cmd === "done") showResults(d);
+    else if (d.cmd === "history") {
+      save(d.csv, stem() + "_combined_tracking_data.csv");
+      $("dlHistory").disabled = false; $("dlHistory").textContent = "Download";
+    }
     else if (d.cmd === "error") {
       $("btnScan").disabled = false; $("btnScan").textContent = "Read the whole file";
       drop.querySelector("strong").textContent = "Drop file(s) here";

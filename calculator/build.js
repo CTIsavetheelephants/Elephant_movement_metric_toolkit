@@ -27,7 +27,7 @@ const REL = fs.existsSync(here("release.config.json")) ? JSON.parse(read("releas
 
 const siteUrl = (process.env.EMT_SITE_URL || REL.siteUrl || "").replace(/\/?$/, "/");
 const CONFIG = {
-  version: "1.1.0",
+  version: "1.2.0",
   sendUrl: process.env.EMT_SEND_URL || REL.receiverUrl || "",
   sendEmail: process.env.EMT_SEND_EMAIL || REL.sendEmail || "angela@savetheelephants.org",
   siteUrl: siteUrl === "/" ? "" : siteUrl,

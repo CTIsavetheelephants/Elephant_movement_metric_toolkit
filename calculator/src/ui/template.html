@@ -28,7 +28,8 @@
   <!-- 1. LOAD -->
   <section class="card step" id="step1">
     <h2>1. Load your tracking data</h2>
-    <p class="muted">A CSV or Excel export from your collar system (EarthRanger, Movebank, Africa Wildlife Tracking, Vectronic, Lotek, ...). One row per GPS fix. Several files with the same columns can be loaded together.</p>
+    <p class="muted">A CSV or Excel export from your collar system (EarthRanger, Movebank, Africa Wildlife Tracking, Vectronic, Lotek, ...). One row per GPS fix.</p>
+    <p class="note"><b>Load all your files for this study area at once</b>, covering the whole time since the collars were fitted, not just your latest download. Select or drop several files together; overlapping downloads are fine (repeated fixes are removed). If you saved the <b>combined tracking data</b> file from a previous run, load it together with your new download(s).</p>
     <label class="drop" id="drop">
       <input type="file" id="file" multiple accept=".csv,.txt,.tsv,.xlsx,.xls">
       <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="currentColor" d="M19 15v4H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-4h-2ZM12 3 7 8l1.4 1.4L11 6.8V16h2V6.8l2.6 2.6L17 8l-5-5Z"/></svg>
@@ -77,6 +78,7 @@
         </div>
       </div>
     </div>
+    <p class="note hidden" id="histNote"></p>
     <h3>First rows of your file</h3>
     <div class="tablewrap"><table id="preview"></table></div>
     <div class="actions"><button class="ghost" data-go="1">Back</button><button class="primary" id="btnScan">Read the whole file</button></div>
@@ -98,6 +100,7 @@
     </div>
     <div id="scanSummary" class="note"></div>
     <div id="clockNote" class="note hidden"></div>
+    <div id="spanNote" class="note warn hidden"></div>
     <h3>Elephants found <span class="muted" id="indCount"></span></h3>
     <p class="muted">Sex is needed for the male/female comparisons. Set any that are missing or wrong.</p>
     <div class="row gap"><button class="small ghost" id="allF">Set blanks to female</button><button class="small ghost" id="allM">Set blanks to male</button></div>
@@ -134,6 +137,7 @@
       <div class="downloads">
         <div class="dl main"><div><b>Metrics file</b><span>Summary values per elephant-month and elephant-year. No locations or times of fixes. Save it: to look at your results again later, open this calculator and drop the file onto step 1 (Load data).</span></div><button class="primary" id="dlMetrics">Download</button></div>
         <div class="dl" id="reportRow"><div><b>Run report</b><span>What was cleaned, excluded and calculated.</span></div><button id="dlReport">Download</button></div>
+        <div class="dl" id="historyRow"><div><b>Combined tracking data</b><span>All the GPS fixes you loaded, from every file, in one file (repeated fixes removed, before cleaning). Keep it: next time, load it on step 1 together with your new download, so the metrics use your elephants' whole history. Contains locations and times - for your own records, do not share.</span></div><button id="dlHistory">Download</button></div>
         <div class="dl" id="removedRow"><div><b>Removed fixes</b><span>Every fix the automatic cleaning removed, with the reason. For your own records - do not share.</span></div><button id="dlRemoved">Download</button></div>
       </div>
       <div id="runDetails">

@@ -2,7 +2,7 @@
  * output files. Used by the calculator's Web Worker. */
 (function (G) {
   const EMT = (G.EMT = G.EMT || {});
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
 
   /* settings: {studyArea, country, tz, sexByName: {name: 'female'|'male'|''},
    *            anonymise, organisation, compat, sourceFiles} */

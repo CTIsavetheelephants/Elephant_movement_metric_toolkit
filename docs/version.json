@@ -1,7 +1,7 @@
 {
-  "latest": "1.1.0",
+  "latest": "1.2.0",
   "min_version": "1.0.0",
-  "released": "2026-10-11",
-  "notes": "Now published on GitHub Pages: open it from a link, or save the page to use it offline. Compare with other populations is coming soon.",
+  "released": "2026-10-14",
+  "notes": "Load all your downloads at once, or keep the new Combined tracking data file and load it with your next download, so metrics use your elephants' whole history. A warning now shows when the data look like a single short download.",
   "download": "https://ctisavetheelephants.github.io/Elephant_movement_metric_toolkit/"
 }

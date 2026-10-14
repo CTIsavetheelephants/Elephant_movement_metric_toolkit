@@ -18,7 +18,7 @@ Everything runs inside your web browser. There is nothing to install, and no acc
 - The calculator is a single web page. When you load a file, **your own browser reads it**. Your tracking data is never uploaded anywhere, whether you use the online link or a saved copy.
 - **Nothing is sent unless you click "Send to Save the Elephants".** Before anything is sent, the calculator shows exactly what will go: only the metrics file, plus the run report if you tick the box. The metrics file holds summary values per elephant-month and elephant-year. It contains **no locations, no fix times and no raw data**.
 - If you are online, the page checks a small public note (`version.json`) on this site, only to tell you when a newer version exists. Nothing about you or your data is included in that check.
-- The "removed fixes" download is for your own records. It is never sent.
+- The "removed fixes" and "combined tracking data" downloads are for your own records. They are never sent.
 
 ---
 
@@ -32,11 +32,26 @@ Open the link above, and follow the five steps on the page:
 3. **Elephants.** Enter the study area name and check each elephant's sex.
 4. **Calculate.**
 5. **Results.**
-   - **Summary & files:** download your metrics file, the run report and the list of removed fixes, and (optionally) send the metrics to Save the Elephants.
+   - **Summary & files:** download your metrics file, the run report, your combined tracking data and the list of removed fixes, and (optionally) send the metrics to Save the Elephants.
    - **Monitoring My Elephants:** charts of your own elephants.
    - **Compare with other populations:** *coming soon*. See below.
 
 To look at your results again later, open the calculator and drop your saved `*_metrics.csv` file onto step 1. The **Metrics definitions** button (step 3) explains every metric.
+
+### Use all your data, not just the latest download
+Many collar systems (e.g. Africa Wildlife Tracking) are downloaded every month or every few months. **Always calculate from the elephants' whole history**, not from the latest download on its own. If you run each download separately:
+
+- **annual metrics** (home range, MCP area, intensity of use, yearly displacement) are missing or too small, because they need at least 6 months within a calendar year
+- **year-to-year metrics** (range overlap and space-use shift from the previous year) are never calculated, because they need the previous year's data in the same run
+- **months at the edges of each download** are split or dropped
+- **cleaning** may wrongly remove fixes at the start and end of each download, because it treats the start and end of a track as possible pre-deployment or dropped-collar periods
+
+There are two easy ways to avoid this:
+
+1. **Load all your files at once.** On step 1, select or drop every download for the study area together. Overlapping downloads are fine: repeated fixes are removed.
+2. **Keep the combined tracking data file.** After each run, download **Combined tracking data** on the results page. It is one file with every fix you loaded, from all your files. Next time, load it together with your new download. The new file holds everything again, so you only ever need these two files.
+
+If the data you load cover less than about a year, or most elephants have less than 6 months of data, step 3 shows a warning.
 
 ### Offline use (e.g., outside internet coverage)
 Open the link once while you have internet, then save the page:

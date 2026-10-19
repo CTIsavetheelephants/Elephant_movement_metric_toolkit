@@ -49,7 +49,12 @@
     report.stepQC = qc;
     report.nIndividuals = groups.size;
     report.nSteps = steps.length;
-    if (!steps.length) return { rows: [], failed: [], report };
+    if (!steps.length) return { rows: [], failed: [], report, tracks: {} };
+    // 4 h positions per elephant (step starts, metres in this study area's UTM zone) for
+    // the net squared displacement figure; never written to any output file
+    const tracks = {};
+    for (const s of steps) (tracks[s.name] = tracks[s.name] || []).push(s.t, s.x, s.y);
+    for (const n of Object.keys(tracks)) tracks[n] = Float64Array.from(tracks[n]);
 
     const res = EMT.metrics.computeAll(steps, {
       tz: o.tz, studyArea: o.studyArea, dataset: o.dataset, country: o.country, sourceFiles: o.sourceFiles, compat: o.compat,
@@ -57,7 +62,7 @@
     });
     report.rtRadiusM = res.rtRadius;
     report.failedMetrics = res.failed;
-    return { rows: res.rows, failed: res.failed, report };
+    return { rows: res.rows, failed: res.failed, report, tracks };
   }
 
   function rowsToCSV(rows, extraCols) {

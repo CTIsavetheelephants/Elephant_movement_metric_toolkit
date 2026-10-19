@@ -42,7 +42,7 @@
       bySA.get(sa).push(f);
     }
     let rows = [];
-    const saReports = [];
+    const saReports = [], tracks = {};
     let k = 0;
     for (const [sa, fx] of bySA) {
       const base = 0.1 + (0.88 * k) / bySA.size, span = 0.88 / bySA.size;
@@ -53,6 +53,7 @@
       });
       rows = rows.concat(r.rows);
       saReports.push(r.report);
+      for (const [n, a] of Object.entries(r.tracks || {})) tracks[alias.get(n) || n] = a;
       k++;
     }
     for (const r of rows) {
@@ -62,7 +63,7 @@
     }
     say("Done", 1);
     return {
-      rows, cleaning: cl.report, removed: cl.removed, studyAreas: saReports, alias: settings.anonymise ? [...alias] : null,
+      rows, tracks, cleaning: cl.report, removed: cl.removed, studyAreas: saReports, alias: settings.anonymise ? [...alias] : null,
       seconds: (Date.now() - t0) / 1000, version: VERSION,
     };
   }

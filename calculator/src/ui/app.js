@@ -396,7 +396,7 @@
     ["reportRow", "historyRow", "removedRow", "runDetails", "btnBack3"].forEach((id) => $(id).classList.remove("hidden"));
     $("resTitle").textContent = "";
     drawCoverage(r.coverage);
-    EMTExplore.init(r.rows);
+    EMTExplore.init(r.rows, r.tracks);
     updateLocks(); showTab("tabSummary");
     go(5);
   }

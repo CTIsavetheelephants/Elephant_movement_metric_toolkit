@@ -160,7 +160,7 @@ function run(settings) {
   const perMetric = {};
   for (const r of res.rows) perMetric[r.metric] = (perMetric[r.metric] || 0) + 1;
   post({
-    cmd: "done", metricsCSV, report, removed, aliasCSV, perMetric, coverage, rows: res.rows, alias: !!res.alias,
+    cmd: "done", metricsCSV, report, removed, aliasCSV, perMetric, coverage, rows: res.rows, tracks: res.tracks, alias: !!res.alias,
     cleaning: res.cleaning, studyAreas: res.studyAreas, nRows: res.rows.length, seconds: res.seconds, version: res.version,
   });
 }

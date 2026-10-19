@@ -27,7 +27,7 @@
     if (o.yZero && y0 > 0) y0 = 0;
     if (o.refY !== undefined) { y0 = Math.min(y0, o.refY); y1 = Math.max(y1, o.refY); }
     const pad = (y1 - y0) * 0.06 || Math.abs(y1) * 0.1 || 1;
-    const yt = niceTicks(y0 - pad, y1 + pad, 5);
+    const yt = niceTicks(o.yZero && y0 === 0 ? 0 : y0 - pad, y1 + pad, 5);   // yZero: axis starts at 0, no padding below
     const ya = yt[0], yb = yt[yt.length - 1];
     const [xa, xb] = o.xDomain;
     const X = (x) => L + ((x - xa) / (xb - xa || 1)) * (W - L - R);

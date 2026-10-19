@@ -35,15 +35,29 @@
       <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="currentColor" d="M19 15v4H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-4h-2ZM12 3 7 8l1.4 1.4L11 6.8V16h2V6.8l2.6 2.6L17 8l-5-5Z"/></svg>
       <strong>Drop file(s) here</strong><span>or click to choose</span>
     </label>
-    <details class="help"><summary>What does the file need?</summary>
+    <div class="help">
+      <h3>How should your data be formatted for using the tool?</h3>
       <ul>
         <li>An <b>elephant name or ID</b> column</li>
         <li>A <b>date and time</b> for each fix (one column, or separate date and time columns)</li>
         <li><b>Coordinates</b>: latitude/longitude in decimal degrees, UTM easting/northing, or a WKT "POINT (lon lat)" column</li>
         <li>Optional: <b>sex</b>, species, collar ID, study area (you can also enter sex later)</li>
       </ul>
+      <p><b>Extra columns are fine</b> (speed, temperature, battery, DOP, ...): they are ignored. Column names do not have to match exactly; you can check and change which column is which in the next step.</p>
+      <p class="hint">Example (made-up data):</p>
+      <div class="tablewrap example"><table>
+        <thead><tr><th>name</th><th>sex</th><th>timestamp</th><th>latitude</th><th>longitude</th><th class="extra">collar_id</th><th class="extra">temperature</th></tr></thead>
+        <tbody>
+          <tr><td>Kito</td><td>F</td><td>2023-03-01 00:00:00</td><td>0.56812</td><td>37.53104</td><td class="extra">STE-4412</td><td class="extra">21.5</td></tr>
+          <tr><td>Kito</td><td>F</td><td>2023-03-01 01:00:00</td><td>0.56930</td><td>37.53288</td><td class="extra">STE-4412</td><td class="extra">20.9</td></tr>
+          <tr><td>Kito</td><td>F</td><td>2023-03-01 02:00:00</td><td>0.57102</td><td>37.53511</td><td class="extra">STE-4412</td><td class="extra">20.1</td></tr>
+          <tr><td>Baraka</td><td>M</td><td>2023-03-01 00:00:00</td><td>0.61477</td><td>37.48820</td><td class="extra">STE-4520</td><td class="extra">22.3</td></tr>
+          <tr><td>Baraka</td><td>M</td><td>2023-03-01 01:00:00</td><td>0.61659</td><td>37.49013</td><td class="extra">STE-4520</td><td class="extra">21.8</td></tr>
+        </tbody>
+      </table></div>
+      <p class="hint">Shaded columns are extras: not needed, but fine to leave in.</p>
       <p>Fixes should be about 1-4 hours apart. Collars with a typical interval longer than 6 hours cannot be used for these metrics and are skipped.</p>
-    </details>
+    </div>
     <p class="reopen">Already used this tool to calculate metrics? Drop the <b>*_metrics.csv</b> file it made here to look at your results again<span class="cmpOnly"> and compare them with other populations</span>.</p>
   </section>
 
@@ -170,10 +184,15 @@
         <div class="field"><label for="myFocal">Focal elephant</label><select id="myFocal"></select></div>
         <div class="field"><label>Figure</label>
           <div class="radios"><label><input type="radio" name="myFig" value="ts" checked> Time series</label><label><input type="radio" name="myFig" value="z"> Z-score heat map</label>
-          <label><input type="radio" name="myFig" value="wheel"> Monthly wheel</label><label><input type="radio" name="myFig" value="cov"> Coverage</label></div></div>
+          <label><input type="radio" name="myFig" value="wheel"> Monthly wheel</label><label><input type="radio" name="myFig" value="cov"> Coverage</label>
+          <label><input type="radio" name="myFig" value="nsd"> Net squared displacement</label></div></div>
+        <div class="field hidden" id="nsdStartWrap"><label for="nsdStart">Start point</label>
+          <select id="nsdStart"><option value="year">Start of each year</option><option value="first">First fix (collaring)</option></select>
+          <p class="hint">Distance is measured from this point.</p></div>
       </div>
       <div class="field cmpwith"><label>Compare multiple elephants</label><p class="hint" style="margin:0">Tick elephants to show them alongside the focal elephant in every figure.</p><div id="myCompare" class="checks"></div></div>
       <div id="myChart" class="chartbox"></div>
+      <div id="nsdHelp" class="nsdhelp hidden"></div>
       <div class="tablewrap"><table id="myTable" class="compact"></table></div>
     </div>
 

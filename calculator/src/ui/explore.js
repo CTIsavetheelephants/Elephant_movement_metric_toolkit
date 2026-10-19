@@ -30,7 +30,7 @@
   const title = (m) => (META[m] || [m])[0], ylab = (m) => (META[m] || [m, m])[1];
   const sexOf = (s) => (s === "female" || s === "Female" ? "Female" : s === "male" || s === "Male" ? "Male" : "Unknown");
 
-  let REF = null, rows = [], ownSAs = [];
+  let REF = null, rows = [], ownSAs = [], tracks = null;
   function loadReference() {
     try { const t = $("ref-data").textContent.trim(); REF = t && t[0] === "{" ? JSON.parse(t) : null; } catch (e) { REF = null; }
     return REF;
@@ -44,7 +44,8 @@
   const metricItems = (list) => Object.keys(META).filter((m) => list.has(m)).map((m) => [m, title(m)]);
 
   // ================================================================ setup
-  function init(r) {
+  function init(r, tr) {
+    tracks = tr && Object.keys(tr).length ? tr : null;   // 4 h positions; absent when a saved metrics file is reopened
     rows = r.map((x) => Object.assign({}, x, { value: x.value === "" || x.value === null ? NaN : +x.value, year: +x.year,
                                                month: x.month === "" || x.month === null || x.month === undefined ? null : +x.month }));
     ownSAs = [...new Set(rows.map((x) => x.Study_Area))];
@@ -83,6 +84,12 @@
     const focal = $("myFocal").value;
     const comp = [...document.querySelectorAll("#myCompare input:checked")].map((i) => i.value).filter((n) => n !== focal).slice(0, 9);
     const monthly = v.some((x) => x.month);
+    const nsd = fig === "nsd";
+    $("nsdStartWrap").classList.toggle("hidden", !nsd);
+    $("nsdHelp").classList.toggle("hidden", !nsd);
+    $("myMetric").closest(".field").classList.toggle("hidden", nsd);
+    $("myTable").closest(".tablewrap").classList.toggle("hidden", nsd);
+    if (nsd) { $("myChart").innerHTML = drawNSD([focal].concat(comp)); if (!$("nsdHelp").innerHTML) $("nsdHelp").innerHTML = nsdHelp(); return; }
     let svg = "";
     if (!v.length) svg = '<p class="muted">No values for this metric.</p>';
     else if (fig === "ts") {
@@ -150,6 +157,94 @@
     }).join("");
     $("myTable").innerHTML = `<thead><tr><th>Elephant</th><th>Sex</th><th>Values</th><th>Years</th><th>Mean</th></tr></thead><tbody>${tbl}</tbody>`;
   }
+  // ================================================================ Net squared displacement
+  // NSD = squared straight-line distance (km²) of each 4 h position from a start point:
+  // the elephant's first position overall, or its first position in each calendar year.
+  const DAY = 864e5;
+  const yStart = (y) => Date.UTC(y, 0, 1);
+  const fracYear = (t) => { const y = new Date(t).getUTCFullYear(); return y + (t - yStart(y)) / (yStart(y + 1) - yStart(y)); };
+  function nsdSeries(a, from, to, xOf) {
+    const out = [], n = (to - from) / 3, every = Math.max(1, Math.ceil(n / 2500));   // thin very long tracks for drawing
+    const x0 = a[from + 1], y0 = a[from + 2];
+    for (let i = from; i < to; i += 3 * every) out.push([xOf(a[i]), ((a[i + 1] - x0) ** 2 + (a[i + 2] - y0) ** 2) / 1e6]);
+    return out;
+  }
+  function drawNSD(names) {
+    if (!tracks) return '<p class="note">Net squared displacement needs the GPS positions, which a saved metrics file does not contain. Load your tracking data and calculate the metrics to see this figure.</p>';
+    names = names.filter((n) => tracks[n]);
+    if (!names.length) return '<p class="muted">No positions for this elephant.</p>';
+    const kmHint = '<p class="hint">NSD is in km²: 100 km² = 10 km from the start point, 400 km² = 20 km, 2,500 km² = 50 km. Calculated from the cleaned 4-hour positions.</p>';
+    if ($("nsdStart").value === "first") {
+      const series = names.map((n, i) => ({ label: n, color: C.PALETTE[i % C.PALETTE.length], width: i ? 1.3 : 2, dots: false,
+                                            pts: nsdSeries(tracks[n], 0, tracks[n].length, fracYear) }));
+      const xs = series.flatMap((s) => [s.pts[0][0], s.pts[s.pts.length - 1][0]]), x0 = Math.min(...xs), x1 = Math.max(...xs);
+      return C.line({ series, xDomain: [x0, x1], xTicks: dateTicks(x0, x1), yLabel: "NSD (km²)", yZero: true, maxGap: 3 / 365, height: 340 }) + kmHint;
+    }
+    // one panel per elephant, one line per calendar year; colours follow the year in every panel
+    const years = new Set();
+    const per = names.map((n) => {
+      const a = tracks[n], by = new Map();
+      for (let i = 0; i < a.length; i += 3) { const y = new Date(a[i]).getUTCFullYear(); if (!by.has(y)) by.set(y, [i, i]); by.get(y)[1] = i + 3; }
+      const ys = [...by].filter(([, [f, t]]) => (t - f) / 3 >= 30);   // >= 5 days of positions
+      ys.forEach(([y]) => years.add(y));
+      return { n, ys };
+    });
+    const yl = [...years].sort((a, b) => a - b), col = (y) => C.PALETTE[yl.indexOf(y) % C.PALETTE.length];
+    const ticks = MON.map((l, k) => ({ v: (Date.UTC(2001, k, 1) - Date.UTC(2001, 0, 1)) / DAY, label: l }));
+    let h = '<p class="muted small">Distance from where the elephant was at the start of each year (or when its collar started that year). Same-coloured lines are the same year in every panel.</p>';
+    for (const { n, ys } of per) {
+      h += `<h4 class="zhead">${esc(n)}</h4>`;
+      if (!ys.length) { h += '<p class="muted small">Not enough positions.</p>'; continue; }
+      const series = ys.map(([y, [f, t]]) => ({ label: String(y), color: col(y), width: 1.6, dots: false,
+                                              pts: nsdSeries(tracks[n], f, t, (tt) => (tt - yStart(y)) / DAY) }));
+      h += C.line({ series, xDomain: [0, 366], xTicks: ticks, yLabel: "NSD (km²)", yZero: true, maxGap: 3, height: 280 });
+    }
+    return h + kmHint;
+  }
+  function dateTicks(x0, x1) {
+    if (x1 - x0 > 3) return yearTicks(Math.ceil(x0), Math.floor(x1));
+    const t = [];
+    for (let y = Math.floor(x0); y <= x1; y++) for (let m = 0; m < 12; m += 3) t.push({ v: y + m / 12, label: m ? MON[m] : `${MON[0]} ${y}` });
+    return t;
+  }
+  // explainer with sketches of the typical NSD shapes (made-up curves, small fixed wiggle)
+  function nsdHelp() {
+    const PAT = [
+      ["Range resident", "Rises quickly, then levels off. Stays within one home range.", (t) => 0.35 * (1 - Math.exp(-t * 12))],
+      ["Migratory", "Rises to a plateau, then drops back. Seasonal move between two areas and back.",
+       (t) => 0.9 / (1 + Math.exp(-(t - 0.3) * 30)) - 0.9 / (1 + Math.exp(-(t - 0.72) * 30)) + 0.05],
+      ["Dispersal", "One step up to a new, higher plateau. Leaves for a new area and stays.",
+       (t) => 0.1 * (1 - Math.exp(-t * 15)) + 0.75 / (1 + Math.exp(-(t - 0.5) * 25))],
+      ["Nomadic", "Keeps rising without levelling off. No fixed home range.", (t) => 0.95 * t],
+    ];
+    const W = 200, H = 110, L = 14, B = 16;
+    const sk = PAT.map(([name, txt, f], k) => {
+      let d = "";
+      for (let i = 0; i <= 80; i++) {
+        const t = i / 80, v = Math.max(0, f(t) + 0.02 * Math.sin(i * 1.7 + k) + 0.012 * Math.sin(i * 4.3 + 2 * k));
+        d += (i ? "L" : "M") + (L + t * (W - L - 6)).toFixed(1) + " " + (H - B - v * (H - B - 8)).toFixed(1);
+      }
+      return `<div class="pat"><b>${name}</b><svg viewBox="0 0 ${W} ${H}" aria-hidden="true">
+        <line x1="${L}" y1="6" x2="${L}" y2="${H - B}" stroke="var(--line)" stroke-width="1.5"/><line x1="${L}" y1="${H - B}" x2="${W - 4}" y2="${H - B}" stroke="var(--line)" stroke-width="1.5"/>
+        <text x="8" y="${(H - B) / 2}" transform="rotate(-90 8 ${(H - B) / 2})" text-anchor="middle">NSD</text>
+        <text x="${W - 4}" y="${H - 3}" text-anchor="end">time →</text>
+        <path d="${d}" fill="none" stroke="var(--hl)" stroke-width="2" stroke-linejoin="round"/></svg><p>${txt}</p></div>`;
+    }).join("");
+    return `<div class="explain">
+        <div><h3>What is net squared displacement (NSD)?</h3>
+          <p>For every position, NSD is the straight-line distance from a starting point, squared. It ignores the path taken and asks only <i>"how far is the elephant from where it started?"</i></p>
+          <p>Squaring makes large movements stand out, so a move to a new area appears as a clear step rather than being lost in day-to-day wandering.</p></div>
+        <div><h3>Why is it useful?</h3>
+          <p>The shape of the NSD line over time shows the kind of movement an elephant is making: staying in one home range, moving seasonally between areas, leaving for good, or wandering widely. This helps you:</p>
+          <ul><li>spot seasonal migrations and their timing each year</li>
+            <li>see when an elephant shifts to a new range (e.g. a young male dispersing)</li>
+            <li>check whether a change in a metric is due to the elephant moving somewhere else</li></ul></div>
+      </div>
+      <h3>What the shapes mean</h3>
+      <div class="patterns">${sk}</div>
+      <p class="hint">Real tracks are noisier than these sketches, and an elephant can switch strategy between years. NSD depends on the start point: measured from the collaring point, a long track is dominated by its biggest move, so "Start of each year" is usually easier to compare.</p>`;
+  }
+
   function yearTicks(a, b) {
     const step = Math.max(1, Math.round((b - a) / 8));
     const t = [];
@@ -266,6 +361,7 @@
     ["myMetric", "myArea"].forEach((id) => $(id).addEventListener("change", () => { refreshElephants(); drawMine(); }));
     $("myFocal").addEventListener("change", () => { refreshElephants(); drawMine(); });
     $("myCompare").addEventListener("change", drawMine);
+    $("nsdStart").addEventListener("change", drawMine);
     document.querySelectorAll('input[name="myFig"]').forEach((r) => r.addEventListener("change", drawMine));
     ["cmpMetric", "cmpSex"].forEach((id) => $(id).addEventListener("change", drawCompare));
     $("cmpGroups").addEventListener("change", drawCompare);

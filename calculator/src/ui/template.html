@@ -36,7 +36,7 @@
       <strong>Drop file(s) here</strong><span>or click to choose</span>
     </label>
     <div class="help">
-      <h3>How should your data be formatted for using the tool?</h3>
+      <h3>How should your data be formatted?</h3>
       <ul>
         <li>An <b>elephant name or ID</b> column</li>
         <li>A <b>date and time</b> for each fix (one column, or separate date and time columns)</li>
@@ -44,7 +44,7 @@
         <li>Optional: <b>sex</b>, species, collar ID, study area (you can also enter sex later)</li>
       </ul>
       <p><b>Extra columns are fine</b> (speed, temperature, battery, DOP, ...): they are ignored. Column names do not have to match exactly; you can check and change which column is which in the next step.</p>
-      <p class="hint">Example (made-up data):</p>
+      <p class="hint">Example:</p>
       <div class="tablewrap example"><table>
         <thead><tr><th>name</th><th>sex</th><th>timestamp</th><th>latitude</th><th>longitude</th><th class="extra">collar_id</th><th class="extra">temperature</th></tr></thead>
         <tbody>
@@ -55,7 +55,7 @@
           <tr><td>Baraka</td><td>M</td><td>2023-03-01 01:00:00</td><td>0.61659</td><td>37.49013</td><td class="extra">STE-4520</td><td class="extra">21.8</td></tr>
         </tbody>
       </table></div>
-      <p class="hint">Shaded columns are extras: not needed, but fine to leave in.</p>
+      <p class="extranote">Any extra columns, such as those shaded above, are fine to leave in.</p>
       <p>Fixes should be about 1-4 hours apart. Collars with a typical interval longer than 6 hours cannot be used for these metrics and are skipped.</p>
     </div>
     <p class="reopen">Already used this tool to calculate metrics? Drop the <b>*_metrics.csv</b> file it made here to look at your results again<span class="cmpOnly"> and compare them with other populations</span>.</p>

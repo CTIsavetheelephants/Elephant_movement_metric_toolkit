@@ -200,3 +200,4 @@ textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px 
 .pat p { margin: 4px 0 0; font-size: .82rem; color: var(--muted); }
 .pat svg { width: 100%; height: auto; display: block; margin-top: 6px; }
 .pat svg text { fill: var(--muted); font-size: 9px; }
+.help .extranote { color: var(--ink); font-size: 1rem; margin: 6px 0 12px; }

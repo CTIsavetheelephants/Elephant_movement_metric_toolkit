@@ -184,14 +184,16 @@
     const drop = (k) => (dropped[k] = (dropped[k] || 0) + 1);
     const fixes = [];
     const num = (v) => (typeof v === "number" ? v : parseFloat(String(v).trim().replace(",", ".")));
+    // text cell; R / Excel missing-value markers ("NA", "N/A", "NULL", ...) count as empty
+    const txt = (v) => { const s = String(v ?? "").trim(); return /^(na|n\/a|nan|null|none|#n\/a)$/i.test(s) ? "" : s; };
     for (const r of rows) {
       if (mp.speciesFilter && c.species >= 0) {
         const sp = String(r[c.species] || "").toLowerCase();
         if (sp && !/elephant|loxodonta|savann|forest/.test(sp)) { drop("not_elephant"); continue; }
       }
-      let name = c.id >= 0 ? String(r[c.id] ?? "").trim() : "";
+      let name = c.id >= 0 ? txt(r[c.id]) : "";
       if (!name) { drop("no_id"); continue; }
-      const tag = c.tag >= 0 ? String(r[c.tag] ?? "").trim() : "";
+      const tag = c.tag >= 0 ? txt(r[c.tag]) : "";
       const p = c.timestamp >= 0 ? T.parseStamp(r[c.timestamp], mp.dateOrder)
                                  : T.parseDateTime(r[c.date], c.time >= 0 ? r[c.time] : null, mp.dateOrder);
       const t = T.toUTC(p, mp.assumeUTC, mp.tz);
@@ -208,7 +210,7 @@
       }
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) { drop("no_coordinates"); continue; }
       const sex = c.sex >= 0 ? normSex(r[c.sex]) : null;
-      const sa = c.studyArea >= 0 ? String(r[c.studyArea] ?? "").trim() : "";
+      const sa = c.studyArea >= 0 ? txt(r[c.studyArea]) : "";
       fixes.push({ name, tag, sex, t, lon, lat, sa });
     }
     return { fixes, dropped };

@@ -61,7 +61,8 @@
 
   // ------------------------------------------------------------- navigation
   function go(n) {
-    for (let i = 1; i <= 5; i++) $("step" + i).classList.toggle("hidden", i !== n);
+    for (let i = 0; i <= 5; i++) $("step" + i).classList.toggle("hidden", i !== n);
+    $("stepper").classList.toggle("hidden", n === 0);   // step 0 is the About page
     document.querySelectorAll("#stepper li").forEach((li) => {
       const s = +li.dataset.step;
       li.classList.toggle("on", s === n); li.classList.toggle("done", s < n);
@@ -268,12 +269,14 @@
     $("btnScan").disabled = false; $("btnScan").textContent = "Read the whole file";
     if (!s.nFixes) return fail("No usable rows were found. Check the column choices (and the date format) on the previous step.\n" + JSON.stringify(s.dropped));
     const dropTxt = Object.entries(s.dropped).map(([k, v]) => `${fmtN(v)} ${({ no_id: "without an elephant ID", bad_timestamp: "with an unreadable date/time", no_coordinates: "without coordinates", not_elephant: "of other species" })[k] || k}`).join(", ");
-    $("scanSummary").innerHTML = `Read <b>${fmtN(s.nFixes)}</b> GPS fixes for <b>${s.individuals.length}</b> elephants` +
+    const nNames = new Set(s.individuals.map((g) => g.name)).size;
+    $("scanSummary").innerHTML = `Read <b>${fmtN(s.nFixes)}</b> GPS fixes for <b>${nNames}</b> elephants` +
       (dropTxt ? `. Skipped rows: ${esc(dropTxt)}.` : ".");
     if (s.nHistoryFixes) $("scanSummary").innerHTML += ` This includes <b>${fmtN(s.nHistoryFixes)}</b> fixes from your combined tracking data file.`;
     $("scanSummary").className = "note" + (s.dropped.bad_timestamp > s.nFixes * 0.05 ? " warn" : "");
     showClock(s.clock);
-    showSpan(s.individuals);
+    showSpan([...groupBy(s.individuals, (g) => g.name).values()].map((gs) =>
+      ({ first: Math.min(...gs.map((g) => g.first)), last: Math.max(...gs.map((g) => g.last)) })));
     if (s.lookup && !$("country").value) $("country").value = s.lookup.country;
     // study areas: from the file's study-area column (or a combined tracking data file) if
     // there is one, else one area named from the file
@@ -285,16 +288,27 @@
     $("saColHint").textContent = !saCol ? "Enter the study area name."
       : s.studyAreas.length === 1 ? `Study area taken from the file: ${s.studyAreas[0]}. Enter study area name here if that is incorrect.`
       : `Study areas taken from the file: ${s.studyAreas.join(", ")}. Edit any name that is incorrect.`;
-    $("indCount").textContent = `(${s.individuals.length})`;
-    const rows = s.individuals.map((g, i) => `<tr><td>${esc(g.name)}${g.sexConflict ? '<span class="tag warn">sex differs between rows</span>' : ""}</td>
-      <td>${fmtN(g.n)}</td><td>${fmtD(g.first)}</td><td>${fmtD(g.last)}</td>
+    $("lumpHint").classList.toggle("hidden", !s.hasTags);
+    const rows = s.individuals.map((g, i) => `<tr><td><input class="namein" data-i="${i}" value="${esc(g.name)}" aria-label="Elephant name">` +
+      `${g.sexConflict ? '<span class="tag warn">sex differs between rows</span>' : ""}</td>
+      ${s.hasTags ? `<td>${esc(g.tag || "none")}</td>` : ""}<td>${fmtN(g.n)}</td><td>${fmtD(g.first)}</td><td>${fmtD(g.last)}</td>
       <td><select class="sexsel" data-i="${i}"><option value="">unknown</option><option value="female" ${g.sex === "female" ? "selected" : ""}>female</option><option value="male" ${g.sex === "male" ? "selected" : ""}>male</option></select></td>
       <td><select class="sasel" data-i="${i}"></select></td></tr>`).join("");
-    $("indTable").innerHTML = `<thead><tr><th>Elephant</th><th>Fixes</th><th>First</th><th>Last</th><th>Sex</th><th>Study area</th></tr></thead><tbody>${rows}</tbody>`;
+    $("indTable").innerHTML = `<thead><tr><th>Elephant</th>${s.hasTags ? "<th>Collar ID</th>" : ""}<th>Fixes</th><th>First</th><th>Last</th><th>Sex</th><th>Study area</th></tr></thead><tbody>${rows}</tbody>`;
+    countNames();
     renderSAs();
     document.querySelectorAll("#indTable .sasel").forEach((sel) => (sel.value = String(s.individuals[+sel.dataset.i].saIdx)));
     go(3);
   }
+  // rows with the same (edited) name are one elephant
+  const nameOf = (i) => document.querySelector(`#indTable .namein[data-i="${i}"]`).value.trim();
+  function countNames() {
+    const ins = [...document.querySelectorAll("#indTable .namein")];
+    const n = new Set(ins.map((x) => x.value.trim()).filter(Boolean)).size;
+    $("indCount").textContent = ins.length > n ? `(${n} elephants, ${ins.length} rows)` : `(${n})`;
+  }
+  $("indTable").addEventListener("input", (e) => { if (e.target.classList.contains("namein")) countNames(); });
+  function groupBy(arr, fn) { const m = new Map(); for (const x of arr) { const k = fn(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); } return m; }
   // Warn when the data look like a single download rather than the whole history:
   // annual metrics need >= 6 months in a calendar year, year-to-year metrics need
   // consecutive years, and cleaning treats the start/end of each track specially.
@@ -352,21 +366,27 @@
 
   $("btnRun").addEventListener("click", () => {
     const names = saNames.map((n) => n.trim());
-    const studyAreaByName = {}, used = new Set();
-    document.querySelectorAll("#indTable .sasel").forEach((s) => {
-      const nm = names[+s.value];
-      studyAreaByName[scanned.individuals[+s.dataset.i].name] = nm;
-      used.add(+s.value);
-    });
+    // each table row (name + collar ID) -> the elephant name typed in its row
+    const rename = {}, studyAreaByName = {}, sexByName = {}, used = new Set();
+    const units = scanned.individuals.map((g, i) => ({ g, name: nameOf(i),
+      sa: +document.querySelector(`#indTable .sasel[data-i="${i}"]`).value, sex: document.querySelector(`#indTable .sexsel[data-i="${i}"]`).value }));
+    if (units.some((u) => !u.name)) return fail("Please give every row an elephant name.");
+    for (const [nm, us] of groupBy(units, (u) => u.name)) {
+      const sexes = new Set(us.map((u) => u.sex).filter(Boolean)), sas = new Set(us.map((u) => u.sa));
+      if (sexes.size > 1) return fail(`The rows for ${nm} have different sexes. Set them the same, or give the rows different names if they are different elephants.`);
+      if (sas.size > 1) return fail(`The rows for ${nm} have different study areas. Set them the same, or give the rows different names if they are different elephants.`);
+      sexByName[nm] = [...sexes][0] || "";
+      studyAreaByName[nm] = names[us[0].sa];
+      used.add(us[0].sa);
+      for (const u of us) rename[u.g.key] = nm;
+    }
     if ([...used].some((k) => !names[k])) return fail("Please give every study area a name.");
     const usedNames = [...used].sort((a, b) => a - b).map((k) => names[k]);
     if (new Set(usedNames).size !== usedNames.length) return fail("Two study areas have the same name. Please make each name different.");
     const sa = usedNames[0];
-    const sexByName = {};
-    document.querySelectorAll("#indTable .sexsel").forEach((s) => (sexByName[scanned.individuals[+s.dataset.i].name] = s.value));
     const settings = {
       studyArea: sa, studyAreas: usedNames, studyAreaByName, country: $("country").value.trim(), organisation: $("org").value.trim(), tz: $("tz").value,
-      assumeUTC, sexByName, anonymise: false,
+      assumeUTC, sexByName, rename, anonymise: false,
       sourceFiles: files.map((f) => f.name).join("; "),
       compat: { pointsUTC: false, emdMaskFlip: false },
     };
@@ -377,14 +397,18 @@
   });
 
   // ------------------------------------------------------------- 5. results
+  const countElephants = (rows) => new Set(rows.filter((r) => r.Name).map((r) => r.Study_Area + "|" + r.Name)).size;
   function showResults(r) {
     Object.assign(results, r);
     const c = r.cleaning;
-    const nInd = r.studyAreas.reduce((a, s) => a + (s.nIndividuals || 0), 0);
+    const nResampled = r.studyAreas.reduce((a, s) => a + (s.nIndividuals || 0), 0);
+    const nEle = countElephants(r.rows || []);
     const excl = r.studyAreas.reduce((a, s) => a + ((s.excluded || []).length), 0);
     const stat = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
-    $("stats").innerHTML = stat(fmtN(c.nIn), "fixes read") + stat(fmtN(c.nIn - c.nOut), "removed by cleaning") +
-      stat(nInd, "elephants with metrics") + (excl ? stat(excl, "skipped (fixes > 6 h apart)") : "") + stat(fmtN(r.nRows), "total metric values") +
+    $("stats").innerHTML = stat(fmtN(c.nIn), "fixes read") + stat(fmtN(c.nIn - c.nOut), "rows removed by cleaning") +
+      stat(nEle, "elephants with metrics") +
+      (nResampled > nEle ? stat(nResampled - nEle, "elephants with too little data for any metric") : "") +
+      (excl ? stat(excl, "elephants skipped (fixes > 6 h apart)") : "") + stat(fmtN(r.nRows), "total metric values") +
       stat(r.seconds.toFixed(0) + " s", "run time");
     const L = { invalid_coordinates: "Bad / 0,0 coordinates", duplicate: "Exact duplicates", duplicate_5min: "< 5 min after previous fix",
                 outside_africa: "Outside Africa", far_outlier: "Far outside the animal's range", suspicious_vehicle: "Speed >= 25 km/h",
@@ -422,7 +446,7 @@
     $("sendArrow").classList.toggle("hidden", sent);   // arrow only while not yet sent
     $("cmpCardAction").textContent = !COMPARE ? "Coming soon: comparisons will open once partners agree to share pooled summaries."
                                    : sent ? "" : "Send your metrics first to unlock";
-    $("sendTitle").textContent = sent ? "Sent to Save the Elephants - thank you" : "Send your metrics to Save the Elephants";
+    $("sendTitle").textContent = sent ? "Sent to the CTI - thank you" : "Send your metrics to the CTI";
     $("sendText").textContent = !COMPARE
       ? (sent ? "If you recalculate, please send your final results again."
               : "Please send once your results are final. Sends only the metrics file (summary values per elephant-month and elephant-year; no locations or times). You see exactly what is sent first.")
@@ -462,32 +486,46 @@
     }
     const rows = results.rows || [];
     const sas = [...new Set(rows.map((r) => r.Study_Area))];
-    const nEle = new Set(rows.filter((r) => r.Name).map((r) => r.Study_Area + "|" + r.Name)).size;
+    const nEle = countElephants(rows);
     const yrs = rows.map((r) => +r.year).filter(Number.isFinite);
     $("sendWhat").innerHTML = `<b>${esc(stem())}_metrics.csv</b>: ${fmtN(rows.length)} metric values for ${nEle} elephants in ${esc(sas.join(", "))} (${Math.min(...yrs)}-${Math.max(...yrs)}).<br>
       Columns: study area, elephant name, sex, year, month, metric, value and summary counts. <b>No locations, no fix times, no raw data.</b>`;
     $("sReport").parentElement.classList.toggle("hidden", !results.report);
     const online = navigator.onLine !== false;
     $("sendHow").textContent = SEND_URL && online
-      ? "Clicking Send opens a confirmation page from Save the Elephants in a new tab."
+      ? "Clicking Send opens a confirmation page from Save the Elephants in a new tab. It can take a minute or two; keep both tabs open until it says Thank you."
       : `${SEND_URL ? "This computer seems to be offline, so" : "Clicking"} Send will save the file and open an e-mail to ${SEND_EMAIL} - please attach the saved file to it.`;
     $("sendGo").textContent = SEND_URL && online ? "Send" : "Save file and open e-mail";
-    $("sendDlg").showModal();
+    $("sendStatus").classList.add("hidden");
+    openDlg();
   });
+  // Opened non-modally with our own shade: in a modal dialog the browser's saved e-mail/name
+  // suggestions show but cannot be clicked
+  function openDlg() { $("dlgShade").classList.remove("hidden"); $("sendDlg").show(); $("sName").focus(); }
+  function closeDlg() { $("dlgShade").classList.add("hidden"); if ($("sendDlg").open) $("sendDlg").close(); }
+  $("sendDlg").addEventListener("close", closeDlg);
+  $("dlgShade").addEventListener("click", closeDlg);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("sendDlg").open) closeDlg(); });
   $("sendForm").addEventListener("submit", (ev) => {
+    $("dlgShade").classList.add("hidden");   // Cancel and Send both close the dialog (method="dialog")
     if (ev.submitter && ev.submitter.value !== "send") return;
     const meta = { study_area: (results.settings.studyAreas || [results.settings.studyArea || ""]).join(", "), organisation: results.settings.organisation || "",
                    contact_name: $("sName").value.trim(), contact_email: $("sEmail").value.trim(), message: $("sMsg").value.trim(),
                    tool_version: VERSION };
     if (SEND_URL && navigator.onLine !== false) {
+      // the receiver can take a minute or two to answer: open its tab first with a "please wait" page
+      const w = window.open("", "emtSend");
+      if (w) w.document.write(`<!doctype html><meta charset="utf-8"><title>Sending...</title><body style="font:16px system-ui,sans-serif;max-width:36em;margin:3em auto;padding:0 16px;color:#1f2a24">` +
+        `<h2>Sending your metrics...</h2><p>This can take a minute or two. Please keep this tab open; it will say <b>Thank you</b> when your metrics have been received.</p></body>`);
       const f = document.createElement("form");
-      f.method = "POST"; f.action = SEND_URL; f.target = "_blank"; f.acceptCharset = "UTF-8"; f.style.display = "none";
+      f.method = "POST"; f.action = SEND_URL; f.target = w ? "emtSend" : "_blank"; f.acceptCharset = "UTF-8"; f.style.display = "none";
       const add = (k, v) => { const t = document.createElement("textarea"); t.name = k; t.value = v; f.appendChild(t); };
       Object.entries(meta).forEach(([k, v]) => add(k, v));
       add("metrics", results.metricsCSV);
       if ($("sReport").checked && results.report) add("report", results.report);
       document.body.appendChild(f); f.submit(); f.remove();
       markSent();
+      $("sendStatus").classList.remove("hidden");
     } else {
       save(results.metricsCSV, stem() + "_metrics.csv");
       const body = `Hello,\n\nPlease find attached the elephant metrics for ${meta.study_area} (${meta.organisation || "organisation"}), made with the Elephant Movement Metrics Calculator v${VERSION}.\n\n${meta.message}\n\n${meta.contact_name}\n\n[Please attach the file ${stem()}_metrics.csv that was just saved to your Downloads folder.]`;

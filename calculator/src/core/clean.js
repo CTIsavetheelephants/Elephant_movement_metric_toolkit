@@ -105,26 +105,6 @@
     return out;
   }
 
-  /* Collar split (.split_earthranger_collars): one name carried by several
-   * collars at overlapping times -> name_1, name_2 ... by start date. */
-  function splitCollars(fixes) {
-    const byName = U.groupBy(fixes, (f) => f.name);
-    const renamed = [];
-    for (const [name, fx] of byName) {
-      const tags = U.groupBy(fx.filter((f) => f.tag), (f) => f.tag);
-      if (tags.size < 2) continue;
-      const ranges = [...tags].map(([tag, g]) => ({ tag, t0: Math.min(...g.map((f) => f.t)), t1: Math.max(...g.map((f) => f.t)) }))
-                              .sort((a, b) => a.t0 - b.t0);
-      let overlap = false;
-      for (let i = 1; i < ranges.length; i++) if (ranges[i].t0 <= ranges[i - 1].t1) overlap = true;
-      if (!overlap) continue;
-      const idx = new Map(ranges.map((r, i) => [r.tag, i + 1]));
-      for (const f of fx) if (f.tag) f.name = name + "_" + idx.get(f.tag);
-      renamed.push({ name, collars: ranges.length });
-    }
-    return renamed;
-  }
-
   function clean(fixesIn, opts) {
     const o = Object.assign({}, DEFAULTS, opts);
     const removed = [];
@@ -137,8 +117,8 @@
       else if (f.lon < lo0 || f.lon > lo1 || f.lat < la0 || f.lat > la1) rm(f, "outside_africa");
       else fixes.push(f);
     }
-    // 2) collar split, exact duplicates, 5-minute minimum gap
-    const collarSplits = splitCollars(fixes);
+    // 2) exact duplicates, 5-minute minimum gap. Fixes are grouped by elephant name only:
+    //    an elephant with several collars stays one elephant (renaming on step 3 lumps or splits)
     fixes.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : a.t - b.t));
     const kept = [];
     let prev = null, lastKeptT = -Infinity;
@@ -151,7 +131,7 @@
       kept.push(f);
     }
     fixes = kept;
-    if (!fixes.length) return { fixes, removed, report: { counts: tally(removed), collarSplits, nIn: fixesIn.length, nOut: 0 } };
+    if (!fixes.length) return { fixes, removed, report: { counts: tally(removed), nIn: fixesIn.length, nOut: 0 } };
     // 3) project (one zone for the dataset, like combine_prepped)
     const zone = EMT.utm.zoneFor(fixes.map((f) => f.lon), fixes.map((f) => f.lat));
     for (const f of fixes) { const p = EMT.utm.project(f.lon, f.lat, zone); f.x = p[0]; f.y = p[1]; }
@@ -198,7 +178,7 @@
     }
     return {
       fixes: out, removed,
-      report: { counts: tally(removed), collarSplits, perIndividual: perInd, medianIntervalH: medInterval,
+      report: { counts: tally(removed), perIndividual: perInd, medianIntervalH: medInterval,
                 nIn: fixesIn.length, nOut: out.length, utmEpsg: zone.epsg },
     };
   }

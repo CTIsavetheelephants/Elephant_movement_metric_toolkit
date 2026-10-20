@@ -1,6 +1,6 @@
 /**
  * Elephant Metrics receiver - Google Apps Script web app (runs in STE's Google
- * Workspace; no server needed). The calculator's "Send to Save the Elephants"
+ * Workspace; no server needed). The calculator's "Send to the CTI"
  * button posts the metrics file here; it is checked, saved to a Drive folder and
  * e-mailed to NOTIFY_EMAIL. The update check is NOT done here any more: the
  * calculator reads version.json from the GitHub Pages site itself. This script only
@@ -56,7 +56,7 @@ function doPost(e) {
     if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact)) mail.replyTo = contact;
     MailApp.sendEmail(mail);
     return page_('Thank you!', 'Your metrics for ' + (p.study_area || 'your study area') + ' (' + rows +
-                 ' values) were received by Save the Elephants. You can close this tab.');
+                 ' values) were received by the CTI. You can close this tab.');
   } catch (err) {
     return page_('Something went wrong', 'Your file could not be saved (' + err + '). Please e-mail it to ' + NOTIFY_EMAIL + '.');
   }

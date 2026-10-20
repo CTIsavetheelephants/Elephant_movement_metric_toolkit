@@ -7,7 +7,7 @@ A free tool from [Save the Elephants](https://www.savetheelephants.org) for peop
 1. **cleans it automatically**, removing bad fixes, duplicates, GPS spikes and collars sitting in an office before deployment. If possible, please check your data before loading it, as the automatic cleaning may miss less obvious errors
 2. **calculates 23 movement metrics** for every elephant: speeds, day/night activity, displacement, home-range size, range overlap, residence time and more
 3. **shows your elephants** over time, side by side, as heat maps and as seasonal "wheels"
-4. **lets you download** the results and, if you choose, **send them to Save the Elephants**
+4. **lets you download** the results and, if you choose, **send them to the Continental Elephant Tracking Initiative (CTI), coordinated by Save the Elephants**
 
 Everything runs inside your web browser. There is nothing to install, and no account or R is needed.
 
@@ -16,7 +16,7 @@ Everything runs inside your web browser. There is nothing to install, and no acc
 ## Your data stays on your computer
 
 - The calculator is a single web page. When you load a file, **your own browser reads it**. Your tracking data is never uploaded anywhere, whether you use the online link or a saved copy.
-- **Nothing is sent unless you click "Send to Save the Elephants".** Before anything is sent, the calculator shows exactly what will go: only the metrics file, plus the run report if you tick the box. The metrics file holds summary values per elephant-month and elephant-year. It contains **no locations, no fix times and no raw data**.
+- **Nothing is sent unless you click "Send to the CTI".** Before anything is sent, the calculator shows exactly what will go: only the metrics file, plus the run report if you tick the box. The metrics file holds summary values per elephant-month and elephant-year. It contains **no locations, no fix times and no raw data**.
 - If you are online, the page checks a small public note (`version.json`) on this site, only to tell you when a newer version exists. Nothing about you or your data is included in that check.
 - The "removed fixes" and "combined tracking data" downloads are for your own records. They are never sent.
 
@@ -32,11 +32,11 @@ Open the link above, and follow the five steps on the page:
 3. **Elephants.** Enter the study area name and check each elephant's sex.
 4. **Calculate.**
 5. **Results.**
-   - **Summary & files:** download your metrics file, the run report, your combined tracking data and the list of removed fixes, and (optionally) send the metrics to Save the Elephants.
+   - **Summary & files:** download your metrics file, the run report, your combined tracking data and the list of removed fixes, and (optionally) send the metrics to the CTI.
    - **Monitoring My Elephants:** charts of your own elephants.
    - **Compare with other populations:** *coming soon*. See below.
 
-To look at your results again later, open the calculator and drop your saved `*_metrics.csv` file onto step 1. The **Metrics definitions** button (step 3) explains every metric.
+To look at your results again later, open the calculator and drop your saved `*_metrics.csv` file onto step 1. The **Movement metric definitions** button on the opening page explains every metric.
 
 ### Use all your data, not just the latest download
 Many collar systems (e.g. Africa Wildlife Tracking) are downloaded every month or every few months. **Always calculate from the elephants' whole history**, not from the latest download on its own. If you run each download separately:

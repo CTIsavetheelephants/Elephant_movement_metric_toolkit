@@ -36,12 +36,22 @@
     return REF;
   }
 
+  // items: [value, label, group?, class?]; consecutive items with the same group go in one <optgroup>
   function options(sel, items, keep) {
     const cur = keep ? sel.value : null;
-    sel.innerHTML = items.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+    let html = "", open = null;
+    for (const [v, l, g, cls] of items) {
+      if (g !== open) { if (open) html += "</optgroup>"; if (g) html += `<optgroup label="${esc(g)}">`; open = g; }
+      html += `<option value="${esc(v)}"${cls ? ` class="${cls}"` : ""}>${esc(l)}</option>`;
+    }
+    sel.innerHTML = html + (open ? "</optgroup>" : "");
     if (cur && items.some(([v]) => String(v) === cur)) sel.value = cur;
   }
-  const metricItems = (list) => Object.keys(META).filter((m) => list.has(m)).map((m) => [m, title(m)]);
+  // the 9 priority metrics first (see EMTDefs.PRIORITY), then the rest
+  const PRIORITY = G.EMTDefs.PRIORITY;
+  const metricItems = (list) =>
+    PRIORITY.filter((m) => list.has(m)).map((m) => [m, title(m) + " - priority metric", "Priority metrics", "prio"])
+      .concat(Object.keys(META).filter((m) => list.has(m) && !PRIORITY.includes(m)).map((m) => [m, title(m), "Other metrics"]));
 
   // ================================================================ setup
   function init(r, tr) {

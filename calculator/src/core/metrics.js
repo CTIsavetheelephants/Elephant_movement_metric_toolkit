@@ -15,7 +15,8 @@
   const EMT = (G.EMT = G.EMT || {});
   const U = EMT.util, T = EMT.time, K = EMT.kde;
   const { meanOrNA, sdOrNA, seOrNA, countFinite, roundR, clamp01, diameter, groupBy, nDistinct } = U;
-  const H6 = 6 * T.HOUR;
+  // biological day: 06:00-06:00 on the LOCAL CLOCK (also on daylight-saving change days)
+  const bioDayNum = (ms, tz) => { const p = T.localParts(ms, tz); return p.hour < 6 ? p.dayNum - 1 : p.dayNum; };
 
   const METRIC_ORDER = [
     "mean_speed", "night_day_speed_ratio", "night_speed", "day_speed", "net_displacement", "daily_msd",
@@ -52,7 +53,7 @@
     const pb = sb.map((s) => {
       const lp = T.localParts(s.t, ptz);
       const [iy, iw] = T.isoWeek(lp.dayNum);
-      const [by, bm, bd] = T.civilFromDays(T.localParts(s.t - H6, ptz).dayNum);
+      const [by, bm, bd] = T.civilFromDays(bioDayNum(s.t, ptz));
       return { name: s.name, sex: s.sex, t: s.t, x: s.x, y: s.y, year: lp.y, month: lp.m, day: lp.d,
                isoY: iy, isoW: iw, bioY: by, bioM: bm, bioD: bd };
     });
@@ -63,9 +64,9 @@
     return { tz, compat, stepsBase: sb, stepsMonth, pointsBioMonth, pointsMonth, pointsWeek, pointsYear, rtRadius };
   }
 
-  // step biological day: local date of (midpoint - 6 h)
+  // step biological day: the biological day of the step's midpoint
   function stepBio(s, tz) {
-    const [y, m, d] = T.civilFromDays(T.localParts(s.t + (s.dtSec * 1000) / 2 - H6, tz).dayNum);
+    const [y, m, d] = T.civilFromDays(bioDayNum(s.t + (s.dtSec * 1000) / 2, tz));
     return { bioY: y, bioM: m, bioD: d };
   }
 

@@ -21,12 +21,34 @@
 
 <main class="wrap">
   <div class="update hidden" id="updateBanner" role="status"></div>
-  <ol class="stepper" id="stepper">
+  <!-- 0. ABOUT (first page) -->
+  <section class="card step intro" id="step0">
+    <h2>Monitoring elephant movement across Africa</h2>
+    <p class="lead">This tool calculates standardised <b>movement metrics</b> from elephant GPS tracking data. It is part of the
+      <b>Continental Elephant Tracking Initiative (CTI)</b>, coordinated by Save the Elephants, which uses the same metrics from tracking projects across Africa
+      to set baselines for how elephants move and to detect when that movement changes.</p>
+    <div class="figrow">
+    <figure class="framework">
+      <img src="data:image/png;base64,/*__FRAMEWORK__*/" alt="Examples of movement metrics (net displacement, speed, home range size, diurnality, straightness), and the three parts of the work: 1 movement baseline, comparing metrics across elephants, landscapes, seasons and years; 2 movement drivers, relating metrics to environmental conditions and human pressures; 3 monitoring tool, calculating metrics and identifying changes from baseline patterns.">
+    </figure>
+    <!-- sits beside the figure's top panel ("Examples of movement metrics") -->
+    <div class="figside"><div><button class="ghost" id="btnDefs">See all metrics</button>
+      <p class="hint">Definitions and diagrams for all 23 metrics the tool calculates</p></div></div>
+    </div>
+    <div class="uses">
+      <div><b>1. Calculate</b><span>Turn your GPS collar data into movement metrics, on your own computer.</span></div>
+      <div><b>2. Share</b><span>Send the metrics (no locations) to the CTI to include your population in the research.</span></div>
+      <div><b>3. Monitor</b><span>Follow your own elephants' metrics over time<span class="cmpOnly"> and compare them with other populations</span>.</span></div>
+    </div>
+    <div class="actions end"><button class="primary" data-go="1">Get started</button></div>
+  </section>
+
+  <ol class="stepper hidden" id="stepper">
     <li data-step="1" class="on">Load data</li><li data-step="2">Check columns</li><li data-step="3">Elephants</li><li data-step="4">Calculate</li><li data-step="5">Results</li>
   </ol>
 
   <!-- 1. LOAD -->
-  <section class="card step" id="step1">
+  <section class="card step hidden" id="step1">
     <h2>1. Load your tracking data</h2>
     <p class="muted">A CSV or Excel export from your collar system (EarthRanger, Movebank, Africa Wildlife Tracking, Vectronic, Lotek, ...). One row per GPS fix.</p>
     <p class="note"><b>Load all your files for this study area at once</b>, covering the whole time since the collars were fitted, not just your latest download. Select or drop several files together; overlapping downloads are fine (repeated fixes are removed). If you saved the <b>combined tracking data</b> file from a previous run, load it together with your new download(s).</p>
@@ -59,6 +81,7 @@
       <p>Fixes should be about 1-4 hours apart. Collars with a typical interval longer than 6 hours cannot be used for these metrics and are skipped.</p>
     </div>
     <p class="reopen">Already used this tool to calculate metrics? Drop the <b>*_metrics.csv</b> file it made here to look at your results again<span class="cmpOnly"> and compare them with other populations</span>.</p>
+    <div class="actions"><button class="ghost" data-go="0">Back</button></div>
   </section>
 
   <!-- 2. COLUMNS -->
@@ -117,10 +140,11 @@
     <div id="spanNote" class="note warn hidden"></div>
     <h3>Elephants found <span class="muted" id="indCount"></span></h3>
     <p class="muted">Sex is needed for the male/female comparisons. Set any that are missing or wrong.</p>
+    <p class="note hidden" id="lumpHint">There is one row for each collar an elephant wore. <b>Rows with the same elephant name are treated as one elephant.</b>
+      If several collar IDs belong to one elephant, give their rows the same name. If two different elephants share a name, change the name in one of their rows.</p>
     <div class="row gap"><button class="small ghost" id="allF">Set blanks to female</button><button class="small ghost" id="allM">Set blanks to male</button></div>
     <div class="tablewrap tall"><table id="indTable"></table></div>
-    <div class="actions"><button class="ghost" data-go="2">Back</button>
-      <div class="runcol"><button class="primary" id="btnRun">Calculate metrics</button><button class="ghost" id="btnDefs">Metrics definitions</button></div></div>
+    <div class="actions"><button class="ghost" data-go="2">Back</button><button class="primary" id="btnRun">Calculate metrics</button></div>
   </section>
 
   <!-- 4. RUN -->
@@ -144,10 +168,12 @@
           <span>See where your population sits among forest, savannah and East African elephants.</span><em id="cmpCardAction"></em></button>
       </div>
       <div class="send" id="sendBox">
-        <div><b id="sendTitle">Send your metrics to Save the Elephants</b>
+        <div><b id="sendTitle">Send your metrics to the CTI</b>
           <span id="sendText">Needed to compare your results with other populations. Please send once your results are final. Sends only the metrics file (summary values per elephant-month and elephant-year; no locations or times). You see exactly what is sent first.</span></div>
-        <div class="sendgo"><span class="sendarrow" id="sendArrow" aria-hidden="true">&#10140;</span><button class="primary" id="btnSend">Send to Save the Elephants...</button></div>
+        <div class="sendgo"><span class="sendarrow" id="sendArrow" aria-hidden="true">&#10140;</span><button class="primary" id="btnSend">Send to the CTI...</button></div>
       </div>
+      <p class="note hidden" id="sendStatus" role="status"><b>Sending...</b> The confirmation opens in a new tab and can take a minute or two.
+        Please keep this page and that tab open until the new tab says <b>Thank you</b>.</p>
       <div class="downloads">
         <div class="dl main"><div><b>Metrics file</b><span>Summary values per elephant-month and elephant-year. No locations or times of fixes. Save it: to look at your results again later, open this calculator and drop the file onto step 1 (Load data).</span></div><button class="primary" id="dlMetrics">Download</button></div>
         <div class="dl" id="reportRow"><div><b>Run report</b><span>What was cleaned, excluded and calculated.</span></div><button id="dlReport">Download</button></div>
@@ -166,17 +192,17 @@
 
     <div class="tabpanel hidden lockmsg" id="tabLocked">
       <div class="viewhead"><button class="ghost small backsum">Back to summary</button><h3>Compare with other populations</h3></div>
-      <p><b>Send your metrics to Save the Elephants to compare your results with other populations.</b></p>
+      <p><b>Send your metrics to the CTI to compare your results with other populations.</b></p>
       <p class="muted">Only the metrics file is sent: summary values per elephant-month and elephant-year, with no locations or times of fixes. Your tracking data stays on this computer.</p>
-      <button class="primary" id="btnSend2">Send to Save the Elephants...</button>
+      <button class="primary" id="btnSend2">Send to the CTI...</button>
     </div>
 
     <div class="tabpanel hidden" id="tabMine">
       <div class="viewhead"><button class="ghost small backsum">Back to summary</button><h3>Monitoring My Elephants</h3></div>
       <div class="send hidden" id="mineReminder">
-        <div><b>Your metrics have not been sent to Save the Elephants yet</b>
+        <div><b>Your metrics have not been sent to the CTI yet</b>
           <span>Please send them once your results are final.<span class="cmpOnly"> Sending also unlocks Compare with other populations.</span></span></div>
-        <button class="primary" id="btnSend3">Send to Save the Elephants...</button>
+        <button class="primary" id="btnSend3">Send to the CTI...</button>
       </div>
       <div class="controls">
         <div class="field"><label for="myMetric">Metric</label><select id="myMetric"></select></div>
@@ -213,14 +239,15 @@
     <div class="actions"><button class="ghost" data-go="3" id="btnBack3">Change settings and recalculate</button><button class="ghost" id="restart">Start again with another file</button></div>
   </section>
 
+  <div class="shade hidden" id="dlgShade"></div>
   <dialog id="sendDlg">
     <form method="dialog" id="sendForm">
-      <h2>Send to Save the Elephants</h2>
+      <h2>Send to the Continental Elephant Tracking Initiative</h2>
       <p class="muted">This is everything that will be sent:</p>
       <div class="note" id="sendWhat"></div>
       <div class="grid2">
-        <div class="field"><label for="sName">Your name</label><input id="sName" autocomplete="name"></div>
-        <div class="field"><label for="sEmail">Your e-mail (for questions)</label><input id="sEmail" type="email" autocomplete="email"></div>
+        <div class="field"><label for="sName">Your name</label><input id="sName" name="name" autocomplete="name"></div>
+        <div class="field"><label for="sEmail">Your e-mail (for questions)</label><input id="sEmail" name="email" type="email" autocomplete="email"></div>
       </div>
       <div class="field"><label for="sMsg">Message (optional)</label><textarea id="sMsg" rows="3"></textarea></div>
       <label class="check"><input type="checkbox" id="sReport" checked> Also send the run report (cleaning and calculation summary; no locations)</label>
@@ -230,7 +257,7 @@
   </dialog>
 
   <section class="card hidden" id="stepDefs">
-    <div class="viewhead"><button class="ghost small" id="defsBack">Back</button><h2>Metrics definitions</h2></div>
+    <div class="viewhead"><button class="ghost small" id="defsBack">Back</button><h2>Movement metric definitions</h2></div>
     <div id="defsBody"></div>
     <div class="actions"><button class="ghost" id="defsBack2">Back</button></div>
   </section>

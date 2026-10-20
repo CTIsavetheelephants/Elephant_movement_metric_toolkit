@@ -90,7 +90,6 @@
     lines.push(`   Fixes read: ${c.nIn}   kept: ${c.nOut}   removed: ${c.nIn - c.nOut}`);
     if (Number.isFinite(c.medianIntervalH)) lines.push(`   Median fix interval: ${c.medianIntervalH.toFixed(2)} h`);
     for (const [k, v] of Object.entries(c.counts).sort((a, b) => b[1] - a[1])) lines.push(`   - ${v} : ${L[k] || k}`);
-    if (c.collarSplits && c.collarSplits.length) lines.push(`   Individuals split by overlapping collars: ${c.collarSplits.map((s) => s.name).join(", ")}`);
     lines.push("");
     lines.push("2. METRICS");
     for (const s of res.studyAreas) {

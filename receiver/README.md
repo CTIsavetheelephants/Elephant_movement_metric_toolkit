@@ -1,6 +1,6 @@
 # Metrics receiver (Google Apps Script)
 
-This powers the calculator's **Send to Save the Elephants** button. It runs free inside STE's Google Workspace, with no server.
+This powers the calculator's **Send to the CTI** button. It runs free inside STE's Google Workspace, with no server.
 
 When a partner clicks the button (and only then), the calculator posts the metrics file here. The receiver:
 

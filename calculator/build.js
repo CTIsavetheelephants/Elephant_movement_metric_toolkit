@@ -67,6 +67,7 @@ if (!read("src", "core", "run.js").includes(`VERSION = "${CONFIG.version}"`)) th
 
 const html = read("src", "ui", "template.html")
   .replace("/*__CSS__*/", () => read("src", "ui", "style.css"))
+  .replace("/*__FRAMEWORK__*/", () => fs.readFileSync(here("src", "ui", "framework.png")).toString("base64"))   // About-page figure
   .replace("/*__REF__*/", () => ref)
   .replace("/*__DIEL__*/", () => (fs.existsSync(CONFIG.diel) ? JSON.stringify(JSON.parse(fs.readFileSync(CONFIG.diel, "utf8"))) : ""))
   .replace("/*__WORKER__*/", () => workerSrc)

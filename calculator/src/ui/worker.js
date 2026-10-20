@@ -20,6 +20,12 @@ async function firstRow(file) {
 }
 
 const post = (msg) => self.postMessage(msg);
+// one row of the step-3 table: a name + collar ID; settings.rename maps it to the elephant name chosen there
+const unitKey = (f) => f.name + "" + (f.tag || "");
+const renamed = (fixes, rename) => {
+  if (rename) for (const f of fixes) { const n = rename[unitKey(f)]; if (n) f.name = n; }
+  return fixes;
+};
 const progress = (stage, frac) => post({ cmd: "progress", stage, frac });
 
 async function readHead(file, n) {
@@ -114,11 +120,13 @@ async function scan(mapping, template) {
     if (batch.length) add(EMT.parse.extractFixes(batch, Object.assign({}, mapping, { cols: colMap })));
   }
   state.fixes = fixes;
-  // per-individual summary for the sex / review table
+  // summary per name + collar ID for the step-3 table (one row per collar an elephant wore;
+  // rows with the same name are one elephant, renaming a row lumps or splits)
   const ind = new Map();
   for (const f of fixes) {
-    let g = ind.get(f.name);
-    if (!g) ind.set(f.name, (g = { name: f.name, n: 0, first: f.t, last: f.t, female: 0, male: 0, sa: new Map() }));
+    const key = unitKey(f);
+    let g = ind.get(key);
+    if (!g) ind.set(key, (g = { key, name: f.name, tag: f.tag || "", n: 0, first: f.t, last: f.t, female: 0, male: 0, sa: new Map() }));
     g.n++;
     if (f.t < g.first) g.first = f.t;
     if (f.t > g.last) g.last = f.t;
@@ -134,8 +142,9 @@ async function scan(mapping, template) {
   const sas = new Set(fixes.map((f) => f.sa).filter(Boolean));
   post({
     cmd: "scanned", nFixes: fixes.length, nHistoryFixes, dropped, lookup, clock, studyAreas: [...sas].slice(0, 50),
-    individuals: [...ind.values()].sort((a, b) => (a.name < b.name ? -1 : 1)).map((g) => ({
-      name: g.name, n: g.n, first: g.first, last: g.last,
+    hasTags: [...ind.values()].some((g) => g.tag),
+    individuals: [...ind.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : a.first - b.first)).map((g) => ({
+      key: g.key, name: g.name, tag: g.tag, n: g.n, first: g.first, last: g.last,
       sex: g.female || g.male ? (g.female >= g.male ? "female" : "male") : "",
       sexConflict: g.female > 0 && g.male > 0,
       sa: [...g.sa].sort((a, b) => b[1] - a[1]).map((x) => x[0])[0] || "",   // study area of most of its rows
@@ -144,7 +153,7 @@ async function scan(mapping, template) {
 }
 
 function run(settings) {
-  const fixes = state.fixes.map((f) => Object.assign({}, f));
+  const fixes = renamed(state.fixes.map((f) => Object.assign({}, f)), settings.rename);
   const res = EMT.run.runJob(fixes, settings, progress);
   const extra = ["organisation", "tool_version"];
   const metricsCSV = EMT.pipeline.rowsToCSV(res.rows, extra);
@@ -169,7 +178,7 @@ function run(settings) {
  * "combined tracking data" CSV, with the sex and study area confirmed on step 3. */
 function makeHistory(settings) {
   const sexBy = settings.sexByName || {}, saBy = settings.studyAreaByName || {};
-  const fx = state.fixes.slice().sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : a.t - b.t));
+  const fx = renamed(state.fixes.map((f) => Object.assign({}, f)), settings.rename).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : a.t - b.t));
   const q = (v) => { const s = String(v ?? ""); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const lines = [HISTORY_COLS.join(",")];
   let prev = null;

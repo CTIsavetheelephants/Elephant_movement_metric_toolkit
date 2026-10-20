@@ -66,6 +66,14 @@
   };
 
   const M = (key, title, unit, when, what, how, diagram) => ({ key, title, unit, when, what, how, diagram });
+  // The 9 metrics of the final reduced set in the continental baseline analysis (they carry the
+  // least redundant information). Listed first in the results drop-downs.
+  const PRIORITY = ["mean_speed", "night_speed", "diurnality", "straightness", "out_back_idx_month",
+                    "mean_residence_time", "ud95_area_year", "vi_prev_year_95ud", "emd_year"];
+  // cards that describe several metrics name the priority one
+  const PRIORITY_PART = { day_speed: "night speed", ud95_area_year: "95% UD area" };
+  const prioBadge = (key) => PRIORITY_PART[key] ? `<span class="prio">&#9733; Priority metric: ${PRIORITY_PART[key]}</span>`
+    : PRIORITY.includes(key) ? '<span class="prio">&#9733; Priority metric</span>' : "";
   const GROUPS = [
     ["Speed and daily rhythm", [
       M("mean_speed", "Mean speed", "km/h", "monthly", "How fast the elephant moves on average.", "Average speed of all 4-hour steps in the month (step length ÷ step time).", D.speed),
@@ -106,11 +114,12 @@
         <li>A <b>day</b> runs from 06:00 to 06:00 local time, so each daylight period is paired with the night that follows. Daylight is 06:00-18:00.</li>
         <li><b>Monthly</b> values need at least 10 days of data in the month. <b>Yearly</b> values need at least 30 positions spread over at least 6 months of the year.</li>
         <li>Distances are measured on a flat map projection (UTM) of the study area.</li>
-      </ul></div>`;
+      </ul></div>
+      <p class="prionote"><span class="prio">&#9733; Priority metric</span> = preliminary research indicates less redundancy with other metrics.</p>`;
     return basis + GROUPS.map(([g, ms]) => `<h3 class="defgroup">${g}</h3>` + ms.map((m) => `
       <div class="defcard">
         <div class="deftext">
-          <h4>${m.title}</h4>
+          <h4>${m.title} ${prioBadge(m.key)}</h4>
           <p class="defmeta"><span>${m.unit}</span><span>${m.when}</span></p>
           <p><b>What it shows:</b> ${m.what}</p>
           <p><b>How it is calculated:</b> ${m.how}</p>
@@ -118,5 +127,5 @@
         <div class="defpic">${m.diagram}</div>
       </div>`).join("")).join("");
   }
-  G.EMTDefs = { html };
+  G.EMTDefs = { html, PRIORITY };
 })(typeof globalThis !== "undefined" ? globalThis : self);

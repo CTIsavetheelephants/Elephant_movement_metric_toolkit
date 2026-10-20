@@ -137,6 +137,8 @@ svg.chart .hlrow { fill: var(--accent-soft); }
 .cmplegend .sw.band { width: 26px; height: 8px; vertical-align: 1px; border-radius: 4px; background: linear-gradient(90deg, var(--c1), var(--c3), var(--c1)); }
 dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); max-width: 620px; width: calc(100% - 32px); padding: 20px; }
 dialog::backdrop { background: rgba(0, 0, 0, .4); }
+dialog[open]:not(:modal) { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0; z-index: 51; max-height: calc(100vh - 32px); overflow: auto; }
+.shade { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); z-index: 50; }
 textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; width: 100%; }
 @media (max-width: 600px) { .send, .dl { flex-direction: column; align-items: stretch; } }
 .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 2px; }
@@ -166,7 +168,6 @@ textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px 
 .sendgo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .send .sendarrow { display: inline; font-size: 2.4rem; line-height: 1; color: var(--hl); font-weight: 700; }
 /* metrics definitions page */
-.runcol { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
 .defbasis ul { margin: 6px 0 0; padding-left: 20px; }
 .defgroup { margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
 .defcard { display: grid; grid-template-columns: 1fr 260px; gap: 18px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
@@ -201,3 +202,21 @@ textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px 
 .pat svg { width: 100%; height: auto; display: block; margin-top: 6px; }
 .pat svg text { fill: var(--muted); font-size: 9px; }
 .help .extranote { color: var(--ink); font-size: 1rem; margin: 6px 0 12px; }
+/* About page (step 0) */
+.intro .lead { font-size: 1rem; margin: 4px 0 12px; }
+.figrow { display: grid; grid-template-columns: minmax(0, 560px) 190px; gap: 16px; justify-content: center; margin: 0 0 16px; }
+.framework { margin: 0; background: #f4f6f4; border-radius: 10px; padding: 6px; }
+.framework img { display: block; width: 100%; height: auto; }
+.figside > div { height: 47%; display: flex; flex-direction: column; justify-content: center; gap: 4px; }   /* = the figure's top panel */
+.intro .actions.end { justify-content: flex-end; margin-top: 12px; }
+@media (max-width: 760px) { .figrow { grid-template-columns: 1fr; } .figside > div { height: auto; } }
+.uses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.uses > div { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; }
+.uses b { color: var(--accent); }
+.uses > div > span { color: var(--muted); font-size: .9rem; }
+@media (max-width: 760px) { .uses { grid-template-columns: 1fr; } }
+#indTable .namein { width: 12em; padding: 3px 6px; }
+/* priority metrics (drop-downs and definitions) */
+option.prio { font-weight: 700; color: var(--accent); }
+.prio { display: inline-block; font-size: .78rem; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 8px; border-radius: 999px; vertical-align: middle; }
+.prionote { margin: 4px 0 8px; font-size: .9rem; }
